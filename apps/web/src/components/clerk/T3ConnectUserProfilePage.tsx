@@ -17,8 +17,8 @@ import {
 import { relayFailureReason } from "../../cloud/relayFailureReason";
 import { relayEnvironmentDiscovery } from "../../state/relay";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { T3CHAT_SUBSCRIPTION_URL, TunnelUsageMeter, tunnelUpgradeCopy } from "../cloud/TunnelUsage";
-import { Button, InlineButton } from "../ui/button";
+import { TunnelUsageMeter } from "../cloud/TunnelUsage";
+import { Button } from "../ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import { toastManager } from "../ui/toast";
@@ -29,7 +29,6 @@ import {
   ClerkUserProfileRow,
 } from "./ClerkUserProfilePage";
 import { m, type MessageResolver } from "../../i18n/messages";
-import { useT3ChatLink } from "./useT3ChatLink";
 
 const linkedAtFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
@@ -99,8 +98,9 @@ function T3ConnectEnvironmentRow(props: {
               </p>
               <p className="mt-4 max-w-xl text-xs leading-4.5 text-muted-foreground">
                 <T>
-                  T3 Connect access will be revoked, any managed tunnel will be removed, and a host
-                  space will become available. Local connections on your devices are not changed.
+                  Workbench Connect access will be revoked, any managed tunnel will be removed, and
+                  a host space will become available. Local connections on your devices are not
+                  changed.
                 </T>
               </p>
               <div className="mt-4 flex justify-end gap-2">
@@ -131,49 +131,10 @@ function T3ConnectEnvironmentRow(props: {
 
 function T3ConnectTunnelUsage() {
   const usage = useManagedTunnelUsage();
-  const t3Chat = useT3ChatLink();
-  const gt = useGT();
-  const m = useMessages();
   if (usage.used === null || usage.limit === null) return null;
   return (
     <div className="border-t py-4">
       <TunnelUsageMeter used={usage.used} limit={usage.limit} />
-      {usage.upgrade ? (
-        <p className="mt-2 text-xs leading-4.5 text-muted-foreground">
-          {usage.upgrade === "link" && t3Chat.linkUrl ? (
-            <T>
-              Confirm on{" "}
-              <a
-                className="underline"
-                href={t3Chat.linkUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                t3.chat
-              </a>
-              , then select Refresh.
-            </T>
-          ) : (
-            <>
-              {tunnelUpgradeCopy(usage.upgrade, m)}{" "}
-              {usage.upgrade === "link" ? (
-                <InlineButton disabled={t3Chat.pending !== null} onClick={() => void t3Chat.link()}>
-                  {t3Chat.pending === "link" ? gt("Opening…") : gt("Link T3 Chat")}
-                </InlineButton>
-              ) : (
-                <a
-                  className="underline"
-                  href={T3CHAT_SUBSCRIPTION_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <T>Upgrade on T3 Chat</T>
-                </a>
-              )}
-            </>
-          )}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -223,7 +184,7 @@ export function T3ConnectUserProfilePage() {
       toastManager.add({
         type: "success",
         title: gt("Server deregistered"),
-        description: gt("T3 Connect access was revoked and a host space is now available."),
+        description: gt("Workbench Connect access was revoked and a host space is now available."),
       });
       return;
     }
@@ -274,7 +235,7 @@ export function T3ConnectUserProfilePage() {
 
   return (
     <ClerkUserProfilePage
-      title="T3 Connect"
+      title="Workbench Connect"
       description={gt(
         "Environments registered to your account. Connections on this device are managed in Settings.",
       )}
@@ -291,7 +252,7 @@ export function T3ConnectUserProfilePage() {
         {environmentsState.error ? (
           <div className="mb-4 border-t border-destructive/35 py-3 text-xs" role="alert">
             <p className="font-medium text-destructive-foreground">
-              <T>Could not load T3 Connect environments</T>
+              <T>Could not load Workbench Connect environments</T>
             </p>
             <p className="mt-1 text-xs text-muted-foreground">{environmentsState.error}</p>
           </div>
@@ -324,12 +285,12 @@ export function T3ConnectUserProfilePage() {
               </EmptyMedia>
               <EmptyHeader>
                 <EmptyTitle>
-                  <T>No T3 Connect environments</T>
+                  <T>No Workbench Connect environments</T>
                 </EmptyTitle>
                 <EmptyDescription>
                   <T>
-                    Link an environment from its local Settings to make it available through T3
-                    Connect.
+                    Link an environment from its local Settings to make it available through
+                    Workbench Connect.
                   </T>
                 </EmptyDescription>
               </EmptyHeader>

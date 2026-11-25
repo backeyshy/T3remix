@@ -1,39 +1,6 @@
-# Contributing
+# Contributing to Remix Workbench
 
-T3 Code is a project built by and for the community of agentic devs pushing the absolute limits of
-modern AI tools.
-
-That said, it is also ours.
-
-T3 Code is built and maintained by a small team with a clear vision. We are explicitly NOT INTERESTED
-in new feature addition PRs from people outside of said team, with a small
-[exception for vouched contributors](#vouched-features).
-
-We are much more bottlenecked by review capacity than we are creativity, tokens or code. It takes more
-effort to review a PR than it does to create one in the vast majority of cases.
-
-If you're looking for things to contribute, here's my advice: Don't.
-
-T3 Code has far too many people trying to contribute. If you're looking for a fun first project to
-land some PRs in, look elsewhere. Your work will almost certainly be closed.
-
-So who should contribute? Daily users hitting specific bugs that haven't been addressed by us in a
-meaningful way.
-
-Things we are explicitly NOT interested in (and we will auto close):
-
-- New features (vouched contributors have [an exception](#vouched-features))
-- UI overhauls
-- New providers
-- Architecture overhauls (extensions, plugins, new connection methods)
-- New source control methods and providers
-- Different auth methods
-- Support for additional platforms (I already regret Windows ARM)
-
-In case we haven't made this clear: The reason to contribute is fixing bugs. If you want anything from
-the list above that the [vouched exception](#vouched-features) does not cover, the "issues" and "discussion" tabs are there for a reason :)
-
-Now that all of this has been said, let's discuss the best practices when contributing to T3 Code.
+This is an independently maintained fork. Use this repository for proposed changes and issues. The development and review conventions below come from the original project.
 
 ## The best way to help
 
@@ -47,7 +14,7 @@ A +1 on an existing PR is ALWAYS better than another PR. Search the open PRs bef
 covers your bug, react to it, test it, and comment with what you saw.
 
 Report bugs in issues. Put feature requests in
-[Ideas discussions](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
+[Ideas discussions](https://github.com/backeyshy/T3remix/issues).
 
 ## Rules for a PR
 

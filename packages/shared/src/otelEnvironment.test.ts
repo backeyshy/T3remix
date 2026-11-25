@@ -255,6 +255,29 @@ describe("OtelEnvironment", () => {
       protocol: "http/protobuf",
       headers: { "x-key": "otel" },
     });
+    it("rejects upstream receivers from each configuration source", () => {
+      const url = "https://relay.t3.codes/v1/logs";
+      const fallback = { settingsUrl: undefined, bootstrapUrl: undefined };
+      for (const input of [
+        { otel: OtelEnvironment.none, t3: url, fallback },
+        {
+          otel: withLogs(OtelEnvironment.OtelSignal.Export({ ...otelExport, url })),
+          t3: undefined,
+          fallback,
+        },
+        { otel: OtelEnvironment.none, t3: undefined, fallback: { ...fallback, settingsUrl: url } },
+        { otel: OtelEnvironment.none, t3: undefined, fallback: { ...fallback, bootstrapUrl: url } },
+      ]) {
+        assert.isUndefined(
+          OtelEnvironment.resolveSignalEndpoint(
+            input.otel,
+            "logs",
+            { url: input.t3, export: t3Export },
+            input.fallback,
+          ),
+        );
+      }
+    });
     it.each([
       {
         name: "T3CODE_OTLP_*_URL wins over a signal the OTEL variables turned off",

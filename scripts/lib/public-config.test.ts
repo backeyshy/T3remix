@@ -15,6 +15,20 @@ afterEach(() => {
 });
 
 describe("loadRepoEnv", () => {
+  it("clears legacy cloud settings before build-time substitution", () => {
+    const env = loadRepoEnv({
+      repoRoot: makeTemporaryDirectory(),
+      baseEnv: {
+        VITE_CLERK_PUBLISHABLE_KEY: "pk_live_Y2xlcmsudDMuY29kZXMk",
+        T3CODE_RELAY_URL: "https://relay.t3.codes",
+      },
+    });
+    expect(env.VITE_CLERK_PUBLISHABLE_KEY).toBe("");
+    expect(env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY).toBe("");
+    expect(env.T3CODE_RELAY_URL).toBe("");
+    expect(env.VITE_T3CODE_RELAY_URL).toBe("");
+  });
+
   it("applies process, root local, and root precedence in that order", () => {
     const repoRoot = makeTemporaryDirectory();
     NodeFS.writeFileSync(
@@ -32,7 +46,7 @@ describe("loadRepoEnv", () => {
     expect(
       loadRepoEnv({
         baseEnv: {
-          T3CODE_CLERK_PUBLISHABLE_KEY: "pk_ci",
+          T3CODE_CLERK_PUBLISHABLE_KEY: "pk_test_Y2xlcmsuZXhhbXBsZS50ZXN0JA==",
           T3CODE_CLERK_JWT_TEMPLATE: "template_ci",
           T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
           T3CODE_RELAY_URL: "https://ci.example.test",
@@ -40,10 +54,10 @@ describe("loadRepoEnv", () => {
         repoRoot,
       }),
     ).toMatchObject({
-      T3CODE_CLERK_PUBLISHABLE_KEY: "pk_ci",
+      T3CODE_CLERK_PUBLISHABLE_KEY: "pk_test_Y2xlcmsuZXhhbXBsZS50ZXN0JA==",
       T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
-      VITE_CLERK_PUBLISHABLE_KEY: "pk_ci",
-      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_ci",
+      VITE_CLERK_PUBLISHABLE_KEY: "pk_test_Y2xlcmsuZXhhbXBsZS50ZXN0JA==",
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_Y2xlcmsuZXhhbXBsZS50ZXN0JA==",
       T3CODE_CLERK_JWT_TEMPLATE: "template_ci",
       VITE_CLERK_JWT_TEMPLATE: "template_ci",
       EXPO_PUBLIC_CLERK_JWT_TEMPLATE: "template_ci",

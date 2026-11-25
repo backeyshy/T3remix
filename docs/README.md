@@ -1,8 +1,8 @@
-# T3 Code docs
+# Remix Workbench 文档
 
-## Using T3 Code
+## 使用工作台
 
-- [Install T3 Code](./user/install.md)
+- [从本仓库安装](./user/install.md)
 - [Messages and context](./user/composer.md)
 - [Working with threads](./user/thread-sidebar.md)
 - [Permission modes](./user/permission-modes.md)
@@ -21,7 +21,7 @@
 - [Devices](./user/devices.md)
 - [Usage and limits](./user/usage.md)
 - [Secrets](./user/secrets.md)
-- [Product usage data](./user/telemetry.md)
+- [连接与隐私](./user/telemetry.md)
 - [Remote access](./user/remote-access.md)
 - [Guest links](./user/guest-links.md)
 - [T3 Connect troubleshooting](./user/t3-connect-troubleshooting.md)
@@ -33,7 +33,7 @@
 
 ---
 
-## Working on T3 Code
+## 开发
 
 Start with the [development runbook](./operations/00_development.md),
 [contribution policy](../CONTRIBUTING.md), and [trademark policy](../TRADEMARK.md).

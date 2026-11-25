@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { environmentReleaseCheckAtom, releaseCheckError } from "./environmentUpdateCheck";
 
 function stubHangingFetch() {
+  vi.stubEnv("EXPO_PUBLIC_T3CODE_RELEASE_FEED_URL", "https://releases.example.test/latest.yml");
   const { promise: called, resolve } = Promise.withResolvers<AbortSignal>();
   vi.stubGlobal("fetch", (_url: string, init: { signal: AbortSignal }) => {
     resolve(init.signal);
@@ -12,7 +13,13 @@ function stubHangingFetch() {
       init.signal.addEventListener("abort", () => reject(init.signal.reason));
     });
   });
-  return { called, [Symbol.dispose]: () => vi.unstubAllGlobals() };
+  return {
+    called,
+    [Symbol.dispose]: () => {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    },
+  };
 }
 
 function makeRegistry() {

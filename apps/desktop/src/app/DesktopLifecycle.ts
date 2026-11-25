@@ -236,7 +236,12 @@ export const make = DesktopLifecycle.of({
       const args = yield* HostProcess.Arguments;
       yield* electronApp.relaunch({
         execPath: yield* HostProcess.ExecutablePath,
-        args: args.slice(1).filter((arg) => !arg.toLowerCase().startsWith(appLinkPrefix)),
+        args: args
+          .slice(1)
+          .filter(
+            (arg) =>
+              !arg.toLowerCase().startsWith(appLinkPrefix) && !/^t3code(?:-dev)?:/i.test(arg),
+          ),
       });
       yield* electronApp.exit(0);
     }).pipe(

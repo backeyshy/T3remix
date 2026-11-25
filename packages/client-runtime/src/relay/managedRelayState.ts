@@ -135,14 +135,14 @@ export function createManagedRelaySession(input: ManagedRelaySessionInput): Mana
           try: () => readCachedClerkToken(nowMillis),
           catch: (cause) =>
             new ManagedRelaySessionError({
-              ...translatableMessage(msg("Could not obtain the T3 Connect session token.")),
+              ...translatableMessage(msg("Could not obtain the Workbench Connect session token.")),
               cause,
             }),
         }).pipe(Effect.timeoutOption(CLERK_TOKEN_READ_TIMEOUT_MS));
         if (Option.isSome(token)) return token.value;
       }
       return yield* new ManagedRelaySessionError(
-        translatableMessage(msg("Timed out obtaining the T3 Connect session token.")),
+        translatableMessage(msg("Timed out obtaining the Workbench Connect session token.")),
       );
     }),
   };
@@ -197,28 +197,10 @@ function readSessionClerkToken(
       (token): token is string => Boolean(token),
       () =>
         new ManagedRelaySessionError(
-          translatableMessage(msg("The T3 Connect session token is unavailable.")),
+          translatableMessage(msg("The Workbench Connect session token is unavailable.")),
         ),
     ),
   );
-}
-
-const SIGN_IN_BEFORE = {
-  deregister: msg("Sign in to T3 Connect before deregistering an environment."),
-  "link-t3chat": msg("Sign in to T3 Connect before linking T3 Chat."),
-  "unlink-t3chat": msg("Sign in to T3 Connect before unlinking T3 Chat."),
-};
-
-function requireSessionClerkToken(
-  registry: AtomRegistry.AtomRegistry,
-  accountId: string,
-  action: "deregister" | "link-t3chat" | "unlink-t3chat",
-): Effect.Effect<string, ManagedRelaySessionError> {
-  const session = registry.get(managedRelaySessionAtom);
-  if (!session || session.accountId !== accountId) {
-    return Effect.fail(new ManagedRelaySessionError(translatableMessage(SIGN_IN_BEFORE[action])));
-  }
-  return readSessionClerkToken(session);
 }
 
 export const deregisterManagedRelayEnvironment = Effect.fn(
@@ -227,27 +209,16 @@ export const deregisterManagedRelayEnvironment = Effect.fn(
   registry: AtomRegistry.AtomRegistry,
   input: { readonly accountId: string; readonly environmentId: EnvironmentId },
 ) {
-  const clerkToken = yield* requireSessionClerkToken(registry, input.accountId, "deregister");
+  const session = registry.get(managedRelaySessionAtom);
+  if (!session || session.accountId !== input.accountId) {
+    return yield* new ManagedRelaySessionError(
+      translatableMessage(msg("Sign in to Workbench Connect before deregistering an environment.")),
+    );
+  }
+  const clerkToken = yield* readSessionClerkToken(session);
   const relay = yield* ManagedRelay.ManagedRelayClient;
   yield* relay.unlinkEnvironment({ clerkToken, environmentId: input.environmentId });
 });
-
-/** Returns the T3 Chat page URL where the signed-in user confirms the link. */
-export const createManagedRelayT3ChatLinkRequest = Effect.fn(
-  "clientRuntime.managedRelaySession.createT3ChatLinkRequest",
-)(function* (registry: AtomRegistry.AtomRegistry, input: { readonly accountId: string }) {
-  const clerkToken = yield* requireSessionClerkToken(registry, input.accountId, "link-t3chat");
-  const relay = yield* ManagedRelay.ManagedRelayClient;
-  return (yield* relay.createT3ChatLinkRequest({ clerkToken })).url;
-});
-
-export const unlinkManagedRelayT3Chat = Effect.fn("clientRuntime.managedRelaySession.unlinkT3Chat")(
-  function* (registry: AtomRegistry.AtomRegistry, input: { readonly accountId: string }) {
-    const clerkToken = yield* requireSessionClerkToken(registry, input.accountId, "unlink-t3chat");
-    const relay = yield* ManagedRelay.ManagedRelayClient;
-    yield* relay.unlinkT3Chat({ clerkToken });
-  },
-);
 
 function requireClerkToken(
   get: Atom.AtomContext,
@@ -257,7 +228,7 @@ function requireClerkToken(
   if (!session || session.accountId !== accountId) {
     return Effect.fail(
       new ManagedRelaySessionError(
-        translatableMessage(msg("Sign in to T3 Connect before loading relay data.")),
+        translatableMessage(msg("Sign in to Workbench Connect before loading relay data.")),
       ),
     );
   }
@@ -276,7 +247,7 @@ function describeManagedRelayFailure(cause: Cause.Cause<unknown>): {
   }
   return error instanceof Error
     ? { ...messageFromError(error), traceId }
-    : { ...translatableMessage(msg("Could not load T3 Connect data.")), traceId };
+    : { ...translatableMessage(msg("Could not load Workbench Connect data.")), traceId };
 }
 
 export function readManagedRelaySnapshotState<A>(

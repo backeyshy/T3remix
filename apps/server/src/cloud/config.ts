@@ -8,16 +8,17 @@ import * as Schema from "effect/Schema";
 
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 
-export const CLOUD_MINT_PUBLIC_KEY = "cloud-mint-ed25519-public-key";
-export const CLOUD_ENDPOINT_RUNTIME_CONFIG = "cloud-endpoint-runtime-config";
-export const CLOUD_ENDPOINT_CONFIRMED_ORIGIN = "cloud-endpoint-confirmed-origin";
-export const CLOUD_LINKED_USER_ID = "cloud-linked-user-id";
-export const RELAY_URL_SECRET = "cloud-relay-url";
-export const RELAY_ISSUER_SECRET = "cloud-relay-issuer";
-export const RELAY_ENVIRONMENT_CREDENTIAL_SECRET = "cloud-relay-environment-credential";
-export const PUBLISH_AGENT_ACTIVITY_SECRET = "cloud-publish-agent-activity";
-export const HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET = "cloud-hold-webhooks-while-offline";
-export const CLOUD_LINK_REVOKED = "cloud-link-revoked";
+export const CLOUD_MINT_PUBLIC_KEY = "t3remix-cloud-mint-ed25519-public-key";
+export const CLOUD_ENDPOINT_RUNTIME_CONFIG = "t3remix-cloud-endpoint-runtime-config";
+export const CLOUD_ENDPOINT_CONFIRMED_ORIGIN = "t3remix-cloud-endpoint-confirmed-origin";
+export const CLOUD_LINKED_USER_ID = "t3remix-cloud-linked-user-id";
+export const RELAY_URL_SECRET = "t3remix-cloud-relay-url";
+export const RELAY_ISSUER_SECRET = "t3remix-cloud-relay-issuer";
+export const RELAY_ENVIRONMENT_CREDENTIAL_SECRET = "t3remix-cloud-relay-environment-credential";
+// Upstream mobile linking could set the old preference without asking the host owner.
+export const PUBLISH_AGENT_ACTIVITY_SECRET = "t3remix-publish-agent-activity";
+export const HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET = "t3remix-cloud-hold-webhooks-while-offline";
+export const CLOUD_LINK_REVOKED = "t3remix-cloud-link-revoked";
 
 export const encodeEndpointRuntimeConfigJson = Schema.encodeEffect(
   Schema.fromJsonString(RelayManagedEndpointRuntimeConfig),

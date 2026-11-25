@@ -10,9 +10,9 @@ import * as Schema from "effect/Schema";
 
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 
-const CLOUD_LINK_KEY_PAIR = "cloud-link-ed25519-key-pair";
-const CLOUD_LINK_PRIVATE_KEY = "cloud-link-ed25519-private-key";
-const CLOUD_LINK_PUBLIC_KEY = "cloud-link-ed25519-public-key";
+const CLOUD_LINK_KEY_PAIR = "t3remix-cloud-link-ed25519-key-pair";
+const CLOUD_LINK_PRIVATE_KEY = "t3remix-cloud-link-ed25519-private-key";
+const CLOUD_LINK_PUBLIC_KEY = "t3remix-cloud-link-ed25519-public-key";
 
 const EnvironmentKeyPair = Schema.Struct({
   privateKey: Schema.String,

@@ -1,5 +1,5 @@
 import { useGT } from "gt-react-native";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import {
   pullRequestMediaSource,
   pullRequestImageSource,
@@ -26,7 +26,7 @@ export const PullRequestMediaVisibleContext = createContext(true);
 
 export const PullRequestMediaContext = createContext<PullRequestMediaLocation | null>(null);
 
-export function usePullRequestMediaUrl(url: string) {
+function usePullRequestMediaUrl(url: string) {
   const context = useContext(PullRequestMediaContext);
   const source = pullRequestMediaSource(url, context);
   const resource = "resource" in source ? (source.resource ?? null) : null;
@@ -41,12 +41,42 @@ export function usePullRequestMediaUrl(url: string) {
   };
 }
 
-export function PullRequestMedia(props: {
+function OpenAttachment(props: {
+  readonly url: string;
+  readonly caption?: string | undefined;
+  readonly children: ReactNode;
+}) {
+  const gt = useGT();
+  const [openedUrl, setOpenedUrl] = useState<string | null>(null);
+  if (openedUrl === props.url) return props.children;
+  const caption = props.caption || props.url;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={gt("View attachment: {caption}", { caption })}
+      onPress={() => setOpenedUrl(props.url)}
+    >
+      <AppText className="text-foreground underline">{caption}</AppText>
+    </Pressable>
+  );
+}
+
+type PullRequestMediaProps = {
   readonly url: string;
   readonly kind: "image" | "video" | "unknown";
   readonly caption?: string;
   readonly compact?: boolean;
-}) {
+};
+
+export function PullRequestMedia(props: PullRequestMediaProps) {
+  return (
+    <OpenAttachment url={props.url} caption={props.caption}>
+      <OpenedPullRequestMedia {...props} />
+    </OpenAttachment>
+  );
+}
+
+function OpenedPullRequestMedia(props: PullRequestMediaProps) {
   const media = usePullRequestMediaUrl(props.url);
   const gt = useGT();
   const visible = useContext(PullRequestMediaVisibleContext);
@@ -54,7 +84,7 @@ export function PullRequestMedia(props: {
   const withGallery = useFilePreviewGallery();
   const [image, setImage] = useState<FilePreviewSource | null>(null);
   const [video, setVideo] = useState<VideoPreviewSource | null>(null);
-  const name = props.caption || new URL(props.url).pathname.split("/").pop() || gt("Attachment");
+  const name = props.caption || props.url.split(/[?#]/, 1)[0]?.split("/").pop() || gt("Attachment");
   if (props.kind === "image")
     return (
       <>
@@ -112,12 +142,22 @@ export function PullRequestMedia(props: {
   );
 }
 
-export function PullRequestImageAttachment(props: {
+type PullRequestAttachmentProps = {
   readonly url: string;
   readonly caption: string;
   readonly source: FilePreviewItem;
   readonly gallery: readonly FilePreviewItem[];
-}) {
+};
+
+export function PullRequestImageAttachment(props: PullRequestAttachmentProps) {
+  return (
+    <OpenAttachment url={props.url} caption={props.caption}>
+      <OpenedImageAttachment {...props} />
+    </OpenAttachment>
+  );
+}
+
+function OpenedImageAttachment(props: PullRequestAttachmentProps) {
   const media = usePullRequestMediaUrl(props.url);
   const gt = useGT();
   const [preview, setPreview] = useState<FilePreviewSource | null>(null);

@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.version = package["version"]
   s.summary = "Native selectable source text for T3 Code mobile."
   s.description = "Fabric-backed styled source text with whole-document selection."
-  s.homepage = "https://t3tools.com"
+  s.homepage = "https://github.com/backeyshy/T3remix"
   s.license = { :type => "MIT", :file => "LICENSE" }
   s.author = { "T3 Tools" => "hello@t3tools.com" }
   s.platforms = { :ios => min_ios_version_supported }

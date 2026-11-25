@@ -1,7 +1,6 @@
-# T3 Code Mobile
+# Remix Workbench Mobile
 
-> [!NOTE]
-> To install the released app from the App Store or Google Play, see [Mobile app](../../docs/user/install.md#mobile-app). This guide covers building it from source.
+Build and install this fork from source using the steps below. To pair, make the server reachable from the phone, open Connections, and scan its pairing QR code or enter its address and code. No account is required.
 
 ## Quickstart
 
@@ -10,13 +9,13 @@
 
 This app has three variants:
 
-- `development`: Expo dev client, installable side-by-side as `T3 Code Dev`
-- `preview`: persistent internal preview build, installable side-by-side as `T3 Code Preview`
-- `production`: store/release build as `T3 Code`
+- `development`: Expo dev client, installable side-by-side as `Remix Workbench Dev`
+- `preview`: persistent internal preview build, installable side-by-side as `Remix Workbench Preview`
+- `production`: store/release build as `Remix Workbench`
 
 Run commands from `apps/mobile`.
 
-T3 Connect is optional and disabled in a fresh clone. Public configuration belongs in the
+Workbench Connect is optional and disabled in a fresh clone. Public configuration belongs in the
 repository-root `.env` or `.env.local`, not an `apps/mobile/.env` file. See
 [`../../.env.example`](../../.env.example).
 
@@ -33,17 +32,7 @@ vp run dev:client
 
 The device argument can be omitted when exactly one device is booted or connected. The helper
 compares this checkout's Expo fingerprint and the installed binary with its last install record,
-and reuses a matching client. Otherwise it installs the build for that fingerprint from
-`~/.cache/t3code/native-clients/artifacts`, then the shared task cache, and builds only when
-neither has it. A build runs in the `Mobile Dev Client` workflow (Blacksmith runners with warm
-Gradle and ccache state, and a macOS runner for iOS) when `gh` may dispatch workflows on
-`pingdotgg/t3code` and HEAD is pushed; the helper waits for the client in the shared cache.
-Otherwise, or when HEAD lacks your native edits or `T3_NATIVE_CLIENT_BUILD=local` is set, it builds
-on this machine. Main's client is built there on every native change, so most checkouts hit. One iOS simulator build serves every iPhone and iPad simulator, and one APK per
-ABI (x86_64 or arm64-v8a) serves every emulator and phone of that ABI. Build output goes to the
-log file it prints (`T3_NATIVE_CLIENT_VERBOSE=1` streams it instead). Builds are shared back when
-your task-cache login (`bash infra/task-cache/install.sh`) can write. `T3_NATIVE_CLIENT_CACHE=read`
-skips the upload and `off` skips the shared cache. Physical iPhones still use `vp run ios:dev`.
+and reuses a matching client in `~/.cache/t3remix/native-clients/artifacts`. Otherwise it builds locally. Physical iPhones use `vp run ios:dev`.
 
 `--session <name>` installs into an agent-device session opened elsewhere, such as a device pool
 or a cloud simulator, instead of a local device: `vp run mobile:install android --session pool-1
@@ -130,13 +119,11 @@ The native lint task runs SwiftLint for Swift plus ktlint and detekt for Kotlin.
 
 ## EAS Builds
 
-Preview and production variants use Expo fingerprinting so OTA updates only reach binaries with matching native dependencies, config plugins, and patches. CI uses the `preview:dev` profile to reuse a compatible native build when possible.
+Local builds need no EAS account. To build in your EAS project, set `T3CODE_EAS_OWNER` and `T3CODE_EAS_PROJECT_ID`. OTA updates are disabled.
 
-The development variant uses `appVersion` to avoid recalculating the native fingerprint for each Metro launch manifest. `MOBILE_VERSION_POLICY` can override either default. If you distribute a custom Release build with the development identity and publish OTA updates to it, set `MOBILE_VERSION_POLICY=fingerprint` for both its build and updates. Changing the runtime policy requires a native rebuild for OTA matching; an existing dev client can still load local Metro bundles.
+For signed builds, supply your Apple team in `T3CODE_IOS_TEAM_ID` and your signing credentials. Override the bundle or package identifier with `T3CODE_IOS_BUNDLE_ID` or `T3CODE_ANDROID_PACKAGE`. The defaults are `io.github.backeyshy.t3remix` with the variant suffix where applicable.
 
-For preview or production EAS environments, set `T3CODE_CLERK_PUBLISHABLE_KEY`,
-`T3CODE_CLERK_JWT_TEMPLATE`, and `T3CODE_RELAY_URL`
-as EAS environment variables. Expo config maps the canonical values into the mobile build.
+For verified HTTPS thread links, set `T3CODE_HOSTED_APP_URL` to your HTTPS web origin and publish the Apple team/bundle association and Android package/signing-certificate association under its `/.well-known/` directory. The repository publishes empty associations by default. Direct QR pairing works without HTTPS app links. To enable mobile checks for server updates, set `EXPO_PUBLIC_T3CODE_RELEASE_FEED_URL` to your release channel’s HTTPS YAML file containing a top-level `version` field. The host must also have its matching update mirror configured.
 
 Create a PR preview dev-client build manually:
 

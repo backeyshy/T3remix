@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version = '1.0.0'
   s.summary = 'Local recording conversion for T3 Code dictation.'
   s.author = 'T3 Tools'
-  s.homepage = 'https://t3tools.com'
+  s.homepage = 'https://github.com/backeyshy/T3remix'
   s.platform = :ios, '18.0'
   s.source = { :path => '.' }
   s.static_framework = true

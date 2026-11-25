@@ -13,7 +13,7 @@ const decodeWriters = Schema.decodeEffect(Writers);
 const encodeWriters = Schema.encodeEffect(Writers);
 
 const stateDirectory = Config.String("HOME").pipe(
-  Effect.map((home) => `${home}/.config/t3-task-cache`),
+  Effect.map((home) => `${home}/.config/t3remix-task-cache`),
 );
 
 const Credential = Schema.fromJsonString(

@@ -1,3 +1,4 @@
+import { isUpstreamServiceHostname } from "@t3tools/shared/relayUrl";
 import * as Alchemy from "alchemy";
 import { adopt } from "alchemy/AdoptPolicy";
 import * as Cloudflare from "@alchemy.run/cloudflare";
@@ -35,6 +36,14 @@ export const RelayDeploymentConfig = Effect.gen(function* () {
   const relayPublicDomain = Option.getOrElse(relayPublicDomainOverride, () =>
     relayPublicDomainForStage(stage, relayApiZoneName),
   );
+
+  if (
+    [relayPublicDomain, relayApiZoneName, managedEndpointZoneName].some((name) =>
+      isUpstreamServiceHostname(name.trim()),
+    )
+  ) {
+    return yield* Effect.die(new Error("Configure operator-owned relay and tunnel domains."));
+  }
 
   return {
     stage,

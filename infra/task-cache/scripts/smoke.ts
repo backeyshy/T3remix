@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - exercises real child processes and isolated workspaces.
 // @effect-diagnostics globalConsole:off - emits the deployment acceptance transcript.
 // @effect-diagnostics globalFetch:off - probes the deployed Worker directly.
+import { allowedCacheEndpoint } from "../src/remoteCache.ts";
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
 import * as NodeFSP from "node:fs/promises";
@@ -48,16 +49,18 @@ try {
   const { endpoint } = JSON.parse(
     await NodeFSP.readFile(NodePath.join(project, ".task-cache.json"), "utf8"),
   );
+  if (typeof endpoint !== "string" || !allowedCacheEndpoint(endpoint))
+    throw new Error("Configure an owner cache endpoint.");
   for (const [path, method] of [
     ["fetch", "POST"],
     ["blob/12345678-1234-1234-1234-123456789abc", "GET"],
   ] as const) {
-    const response = await fetch(`${endpoint}/${path}`, { method });
+    const response = await fetch(`${endpoint}/${path}`, { method, redirect: "error" });
     await response.body?.cancel();
     if (response.status !== 401)
       throw new Error(`Anonymous ${path} returned ${response.status}, expected 401.`);
   }
-  const unauthorized = await fetch(`${endpoint}/store`, { method: "POST" });
+  const unauthorized = await fetch(`${endpoint}/store`, { method: "POST", redirect: "error" });
   await unauthorized.body?.cancel();
   if (unauthorized.status !== 401)
     throw new Error(`Anonymous upload returned ${unauthorized.status}, expected 401.`);
@@ -84,7 +87,7 @@ try {
     await NodeFSP.writeFile(NodePath.join(cwd, "input.txt"), "version-a");
   }
   console.log("First checkout:\n" + (await run("a")));
-  const readerFile = NodePath.join(NodeOS.homedir(), ".config/t3-task-cache/ci-reader.json");
+  const readerFile = NodePath.join(NodeOS.homedir(), ".config/t3remix-task-cache/ci-reader.json");
   let reader;
   try {
     reader = JSON.parse(await NodeFSP.readFile(readerFile, "utf8"));
@@ -92,16 +95,16 @@ try {
     if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
     const credentials = JSON.parse(
       await NodeFSP.readFile(
-        NodePath.join(NodeOS.homedir(), ".config/t3-task-cache/credentials.json"),
+        NodePath.join(NodeOS.homedir(), ".config/t3remix-task-cache/credentials.json"),
         "utf8",
       ),
     );
     reader = credentials[endpoint];
   }
   const otherHome = NodePath.join(root, "other-developer");
-  await NodeFSP.mkdir(NodePath.join(otherHome, ".config/t3-task-cache"), { recursive: true });
+  await NodeFSP.mkdir(NodePath.join(otherHome, ".config/t3remix-task-cache"), { recursive: true });
   await NodeFSP.writeFile(
-    NodePath.join(otherHome, ".config/t3-task-cache/credentials.json"),
+    NodePath.join(otherHome, ".config/t3remix-task-cache/credentials.json"),
     JSON.stringify({
       [endpoint]: reader,
     }),

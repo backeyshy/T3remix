@@ -222,7 +222,7 @@ export function ServerUpdatesAction({
         const confirmed =
           (await requestConfirmDialog(
             gt(
-              "Update the T3 Code desktop apps on {servers}? They will close and relaunch on those machines.",
+              "Update the Remix Workbench desktop apps on {servers}? They will close and relaunch on those machines.",
               { servers: desktopTargets.map((target) => target.serverLabel).join(", ") },
             ),
             { initialFocus: "confirm" },
@@ -306,33 +306,23 @@ export function ServerUpdateAction({
   const canUpdate = useAtomValue(sessionStateAtom, canUpdateServer);
   const updatesDenial = managedUpdatesDenial(useManagedPolicy(environmentId), messages);
   const update = useServerUpdate();
-  const updatesInstall =
-    installation?.kind === "npm-global" || installation?.kind === "t3-launcher";
   const { copyToClipboard } = useCopyToClipboard<{ command: string }>({
-    target: updatesInstall
-      ? {
-          target: "update command",
-          unavailableMessage: msg("Clipboard API is unavailable while copying update command."),
-          failureMessage: msg("Failed to copy update command to the clipboard."),
-        }
-      : {
-          target: "relaunch command",
-          unavailableMessage: msg("Clipboard API is unavailable while copying relaunch command."),
-          failureMessage: msg("Failed to copy relaunch command to the clipboard."),
-        },
+    target: {
+      target: "update command",
+      unavailableMessage: msg("Clipboard API is unavailable while copying update command."),
+      failureMessage: msg("Failed to copy update command to the clipboard."),
+    },
     onCopy: ({ command }) => {
       toastManager.add({
         type: "success",
-        title: updatesInstall ? gt("Update command copied") : gt("Relaunch command copied"),
-        description: updatesInstall
-          ? gt("Run `{command}` on {serverLabel}, then restart t3 with your usual options.", {
-              command,
-              serverLabel,
-            })
-          : gt(
-              "Stop t3 on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed t3 command.",
-              { command, serverLabel },
-            ),
+        title: gt("Update command copied"),
+        description: gt(
+          "Run `{command}` on {serverLabel}, then restart t3remix with your usual options.",
+          {
+            command,
+            serverLabel,
+          },
+        ),
       });
     },
     onError: (error) => {
@@ -355,7 +345,7 @@ export function ServerUpdateAction({
       const confirmed =
         (await requestConfirmDialog(
           gt(
-            "Update the T3 Code desktop app that runs the {serverLabel}? It will close and relaunch on that machine.",
+            "Update the Remix Workbench desktop app that runs the {serverLabel}? It will close and relaunch on that machine.",
             { serverLabel },
           ),
           { initialFocus: "confirm" },
@@ -402,9 +392,7 @@ export function ServerUpdateAction({
     selfUpdate === null ? manualServerUpdateCommand(targetVersion, installation) : null;
   const actionLabel =
     manualCommand !== null
-      ? updatesInstall
-        ? gt("Copy update command")
-        : gt("Copy relaunch command")
+      ? gt("Copy update command")
       : (label ?? gt("Update", { $context: "verb, updates the server" }));
   const onClick =
     manualCommand !== null

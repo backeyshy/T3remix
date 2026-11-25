@@ -1,3 +1,4 @@
+import { isUpstreamServiceHostname } from "./relayUrl.ts";
 import * as Schema from "effect/Schema";
 
 const ClerkPublishableKeyPrefix = Schema.Literals(["pk_test", "pk_live", "unknown"]);
@@ -62,7 +63,15 @@ function parseClerkFrontendApi(publishableKey: string): {
 
   const url = `https://${frontendApi}`;
   try {
-    return { hostname: new URL(url).hostname, url };
+    const parsed = new URL(url);
+    if (
+      isUpstreamServiceHostname(parsed.hostname) ||
+      parsed.host !== frontendApi ||
+      keyPrefix === "unknown"
+    ) {
+      throw new Error("Unsupported authentication hostname");
+    }
+    return { hostname: parsed.hostname, url };
   } catch (cause) {
     throw new ClerkPublishableKeyFrontendApiError({
       keyPrefix,
@@ -79,6 +88,17 @@ export function clerkFrontendApiUrlFromPublishableKey(publishableKey: string): s
 
 export function clerkFrontendApiHostnameFromPublishableKey(publishableKey: string): string {
   return parseClerkFrontendApi(publishableKey).hostname;
+}
+
+export function normalizeClerkPublishableKey(value: string | null | undefined): string | null {
+  const key = value?.trim();
+  if (!key) return null;
+  try {
+    parseClerkFrontendApi(key);
+    return key;
+  } catch {
+    return null;
+  }
 }
 
 export function relayClerkTokenOptions(template: string) {

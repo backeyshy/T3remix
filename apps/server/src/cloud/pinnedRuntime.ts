@@ -10,7 +10,13 @@ import * as Option from "effect/Option";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
 import * as Semaphore from "effect/Semaphore";
-import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/http";
+import {
+  FetchHttpClient,
+  HttpClient,
+  HttpClientError,
+  HttpClientRequest,
+  HttpClientResponse,
+} from "effect/http";
 
 import {
   CLI_RELEASE_CHECKSUMS_FILE,
@@ -18,6 +24,7 @@ import {
   cliArchivePlatformKey,
   cliArchiveTarCommand,
   cliReleaseAssetUrl,
+  isSelfHostedSource,
   type CliArchivePlatformKey,
   parseChecksums,
 } from "@t3tools/shared/cliRelease";
@@ -173,6 +180,7 @@ const fetchReleaseAsset = Effect.fn("cloud.pinned_runtime.fetch_release_asset")(
         : HttpClientRequest.get(url),
     );
   }).pipe(
+    Effect.provideService(FetchHttpClient.RequestInit, { redirect: "error" }),
     // A resume answered 416 has nothing after the held bytes to send; the archive
     // checksum decides whether they are the whole file.
     Effect.filterOrElse(
@@ -272,10 +280,10 @@ const downloadArchive = Effect.fn("cloud.pinned_runtime.download_archive")(funct
   }
   const httpClient = input.httpClient;
   input.onProgress?.({ stage: "download", received: 0, total: undefined });
-  const { fileName, expected } = yield* publishedArchive(input, platformKey);
+  const { fileName, expected, releaseBaseUrl } = yield* publishedArchive(input, platformKey);
   const archive = yield* fetchReleaseAsset(
     httpClient,
-    cliReleaseAssetUrl(input.version, fileName, input.releaseBaseUrl),
+    cliReleaseAssetUrl(input.version, fileName, releaseBaseUrl),
     "downloading the t3 release archive",
     true,
     input.onProgress,
@@ -339,11 +347,17 @@ const publishedArchive = Effect.fn("cloud.pinned_runtime.published_archive")(fun
   platformKey: CliArchivePlatformKey,
 ) {
   const fileName = cliArchiveFileName(input.version, platformKey);
+  const releaseBaseUrl = input.releaseBaseUrl;
+  if (!releaseBaseUrl || !isSelfHostedSource(releaseBaseUrl)) {
+    return yield* new PinnedRuntimeInstallError({
+      step: "selecting a release source (configure T3CODE_RELEASE_BASE_URL or an update mirror)",
+    });
+  }
   const checksums = parseChecksums(
     new TextDecoder().decode(
       yield* fetchReleaseAsset(
         input.httpClient,
-        cliReleaseAssetUrl(input.version, CLI_RELEASE_CHECKSUMS_FILE, input.releaseBaseUrl),
+        cliReleaseAssetUrl(input.version, CLI_RELEASE_CHECKSUMS_FILE, releaseBaseUrl),
         "downloading the t3 release checksums",
         false,
       ),
@@ -355,7 +369,7 @@ const publishedArchive = Effect.fn("cloud.pinned_runtime.published_archive")(fun
       step: `finding ${fileName} in the t3 release checksums`,
     });
   }
-  return { fileName, expected };
+  return { fileName, expected, releaseBaseUrl };
 });
 
 const isPinnedRuntimeInstallError = Schema.is(PinnedRuntimeInstallError);
@@ -557,7 +571,7 @@ export const resolveLauncherPath = Effect.gen(function* () {
 });
 
 /**
- * `t3 update` repoints the launcher it was started through, which may be on neither PATH nor the
+ * `t3remix update` repoints the launcher it was started through, which may be on neither PATH nor the
  * default bin dir. Unrecorded, the next prune would remove the runtime it now points at.
  */
 export const recordPinnedRuntimeLauncher = Effect.fn("cloud.pinned_runtime.record_launcher")(
@@ -588,7 +602,7 @@ export function isVersionExecutable(
   return !path.isAbsolute(relative) && /^(?!\.\.)[^\\/]+[\\/]t3(?:\.exe)?$/i.test(relative);
 }
 
-/** The executable a `t3.cmd` shim written by the install script or `t3 update` runs. */
+/** The executable a `t3.cmd` shim written by the install script or `t3remix update` runs. */
 export const windowsShimTarget = (contents: string) => /^"([^"]+)"/m.exec(contents)?.[1];
 
 /** Like {@link windowsShimTarget}, but only for a shim exactly as written; never a user's wrapper. */
@@ -596,7 +610,7 @@ export const generatedWindowsShimTarget = (contents: string) =>
   /^@echo off\r?\n"([^"]+)" %\*\s*$/.exec(contents)?.[1];
 
 /**
- * The `t3` script the install scripts and `t3 update` write on macOS and Linux. Exec by absolute
+ * The `t3` script the install scripts and `t3remix update` write on macOS and Linux. Exec by absolute
  * path: through a symlink, argv0 is the link, and the Cursor SDK looks for its helpers beside it.
  */
 export const posixLauncherScript = (executable: string) =>
@@ -653,12 +667,12 @@ export const findPosixLauncher = Effect.fn("cloud.pinned_runtime.find_posix_laun
       // PATH first, resolved like the shell does: it decides which t3 the user runs. An empty
       // entry of a nonempty PATH is the working directory; an empty PATH searches nothing.
       ...(searchPath.length === 0 ? [] : searchPath.split(":")).map((directory) =>
-        path.resolve(cwd, directory || ".", "t3"),
+        path.resolve(cwd, directory || ".", "t3remix"),
       ),
       path.join(
         environment["T3CODE_INSTALL_BIN_DIR"] ||
           path.join(yield* HostProcess.HomeDirectory, ".local", "bin"),
-        "t3",
+        "t3remix",
       ),
       ...recorded.split(/\r?\n/),
     ].filter((candidate) => path.isAbsolute(candidate));
@@ -697,7 +711,7 @@ export const writePosixLauncher = Effect.fn("cloud.pinned_runtime.write_posix_la
   Effect.scoped,
 );
 
-/** Where the `t3` launchers written by the install scripts and `t3 update` point. */
+/** Where the `t3` launchers written by the install scripts and `t3remix update` point. */
 const shellLauncherTargets = Effect.fn("cloud.pinned_runtime.shell_launcher_targets")(function* (
   baseDir: string,
 ) {
@@ -706,7 +720,7 @@ const shellLauncherTargets = Effect.fn("cloud.pinned_runtime.shell_launcher_targ
   const platform = yield* HostProcess.Platform;
   const environment = yield* HostProcess.Environment;
   const home = yield* HostProcess.HomeDirectory;
-  const launcherName = platform === "win32" ? "t3.cmd" : "t3";
+  const launcherName = platform === "win32" ? "t3remix.cmd" : "t3remix";
   const launchersFile = path.join(baseDir, PINNED_RUNTIME_DIR, PINNED_RUNTIME_LAUNCHERS_FILE);
   const recorded = (yield* fs.readFileString(launchersFile).pipe(Effect.orElseSucceed(() => "")))
     .split(/\r?\n/)
@@ -716,7 +730,11 @@ const shellLauncherTargets = Effect.fn("cloud.pinned_runtime.shell_launcher_targ
     ...(environment["PATH"] ?? environment["Path"] ?? "").split(platform === "win32" ? ";" : ":"),
   ]
     .filter((directory) => path.isAbsolute(directory))
-    .map((directory) => path.join(directory, launcherName));
+    .flatMap((directory) =>
+      platform === "win32"
+        ? [path.join(directory, launcherName)]
+        : [path.join(directory, launcherName), path.join(directory, "t3")],
+    );
   const versionsDir = pinnedRuntimeVersionsDir(path, baseDir);
   const realVersionsDir = yield* fs
     .realPath(versionsDir)
@@ -769,7 +787,7 @@ const shellLauncherTargets = Effect.fn("cloud.pinned_runtime.shell_launcher_targ
 
 /**
  * Resolved executables rather than command lines: a server started through the `t3` symlink
- * shows up as `t3 serve`, possibly from another T3 home that runs this home's runtimes. Windows
+ * shows up as `t3remix serve`, possibly from another T3 home that runs this home's runtimes. Windows
  * has no symlink launcher, and its `t3.cmd` shim runs the absolute path, so command lines do there.
  */
 const runningExecutables = Effect.fn("cloud.pinned_runtime.running_executables")(function* () {

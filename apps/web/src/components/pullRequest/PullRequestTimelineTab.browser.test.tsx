@@ -184,7 +184,7 @@ it("gives each comment and review a heading for screen reader navigation", async
       {
         id: "review",
         kind: "review",
-        author: { login: "bob", name: null, avatarUrl: null },
+        author: { login: "bob", name: null, avatarUrl: "https://example.com/bob.png" },
         body: "Looks good",
         createdAt: "2026-10-01T00:00:00Z",
         url: `${detail.url}#pullrequestreview-1`,
@@ -217,6 +217,7 @@ it("gives each comment and review a heading for screen reader navigation", async
     </div>,
   );
   await expect.element(screen.getByRole("heading", { name: /bob approved/i })).toBeVisible();
+  expect(screen.container.querySelector('img[src="https://example.com/bob.png"]')).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: /1 comment/ }));
   await expect.element(screen.getByText("One question", { exact: true })).toBeVisible();
   await expect.element(screen.getByRole("heading", { name: /alice commented/ })).toBeVisible();

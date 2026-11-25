@@ -1,3 +1,4 @@
+import { beforeEach, afterEach, vi } from "vite-plus/test";
 import { assert, describe, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { ProviderDriverKind } from "@t3tools/contracts";
@@ -12,6 +13,9 @@ import { HttpClient, HttpClientResponse } from "effect/http";
 import * as ServerConfig from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as ModelManifest from "./ModelManifest.ts";
+
+beforeEach(() => vi.stubEnv("T3CODE_MODEL_MANIFEST_URL", "https://models.example/manifest.json"));
+afterEach(() => vi.unstubAllEnvs());
 
 describe("resolveProviderCatalog", () => {
   it.each([
@@ -261,7 +265,9 @@ const layerService = (input: {
 }) =>
   ServerConfig.layerTest(process.cwd(), { prefix: input.prefix }).pipe(
     Layer.provideMerge(NodeServices.layer),
-    Layer.provideMerge(ServerSettings.layerTest(input.settings ?? {})),
+    Layer.provideMerge(
+      ServerSettings.layerTest({ enableProviderUpdateChecks: true, ...input.settings }),
+    ),
     Layer.provideMerge(layerHttpClient(input.response)),
   );
 
@@ -400,6 +406,32 @@ describe("ModelManifest service", () => {
         layerService({
           prefix: "model-manifest-newer-bundle-test",
           response: () => Response.json(REMOTE_MANIFEST),
+        }),
+      ),
+    ),
+  );
+
+  it.effect("uses the bundled catalog for every refresh when no URL is configured", () =>
+    Effect.gen(function* () {
+      vi.stubEnv("T3CODE_MODEL_MANIFEST_URL", "");
+      const manifest = yield* ModelManifest.make;
+      yield* manifest.refreshInBackground;
+      for (const read of [
+        manifest.current,
+        manifest.refresh,
+        manifest.forceRefresh,
+        manifest.refreshOnDemand,
+      ]) {
+        assert.strictEqual(yield* read, ModelManifest.BUNDLED_MODEL_MANIFEST);
+      }
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        layerService({
+          prefix: "model-manifest-local-only",
+          response: () => {
+            throw new Error("unexpected network access");
+          },
         }),
       ),
     ),

@@ -1,5 +1,4 @@
 import * as Alchemy from "alchemy";
-import { adopt } from "alchemy/AdoptPolicy";
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import { retain } from "alchemy/RemovalPolicy";
 import * as Effect from "effect/Effect";
@@ -9,7 +8,7 @@ const protocol = new URL("../vendor/vite-plus-remote-cache-cloudflare/", import.
 
 export const cacheName = Effect.gen(function* () {
   const { stage } = yield* Alchemy.Stack;
-  return stage === "prod" ? "t3-task-cache" : `t3-task-cache-${stage}`;
+  return stage === "prod" ? "t3remix-task-cache" : `t3remix-task-cache-${stage}`;
 });
 
 export const Index = cacheName.pipe(
@@ -17,7 +16,7 @@ export const Index = cacheName.pipe(
     Cloudflare.D1.Database("Index", {
       name,
       migrations: NodeURL.fileURLToPath(new URL("migrations", protocol)),
-    }).pipe(adopt(true), retain()),
+    }).pipe(retain()),
   ),
 );
 
@@ -32,7 +31,7 @@ export const Artifacts = cacheName.pipe(
           abortMultipartUploadsTransition: { condition: { type: "Age", maxAge: 86400 } },
         },
       ],
-    }).pipe(adopt(true), retain()),
+    }).pipe(retain()),
   ),
 );
 
@@ -48,15 +47,6 @@ export const NativeClients = cacheName.pipe(
           abortMultipartUploadsTransition: { condition: { type: "Age", maxAge: 86400 } },
         },
       ],
-    }).pipe(retain()),
-  ),
-);
-
-export const Savings = cacheName.pipe(
-  Effect.flatMap((name) =>
-    Cloudflare.D1.Database("Savings", {
-      name: `${name}-savings`,
-      migrations: NodeURL.fileURLToPath(new URL("../migrations/savings", import.meta.url)),
     }).pipe(retain()),
   ),
 );

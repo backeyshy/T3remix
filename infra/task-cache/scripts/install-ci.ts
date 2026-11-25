@@ -1,13 +1,22 @@
 // @effect-diagnostics nodeBuiltinImport:off - installs the hook before running project tasks.
+import { allowedCacheEndpoint } from "../src/remoteCache.ts";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
 
-if (process.env.GITHUB_REPOSITORY !== "pingdotgg/t3code" || process.env.GITHUB_ACTIONS !== "true")
+if (
+  process.env.GITHUB_REPOSITORY?.toLowerCase() !== "backeyshy/t3remix" ||
+  process.env.GITHUB_ACTIONS !== "true"
+)
   throw new Error("This setup is only for the maintainer repository's GitHub Actions.");
 const root = NodePath.resolve(import.meta.dirname, "../../..");
-const hookConfig = NodePath.join(NodeOS.homedir(), ".config/vite-plus/run-hook.json");
+const endpoint =
+  process.env.T3_CACHE_SETUP_URL ||
+  JSON.parse(await NodeFSP.readFile(NodePath.join(root, ".task-cache.json"), "utf8")).endpoint;
+if (typeof endpoint !== "string" || !allowedCacheEndpoint(endpoint))
+  throw new Error("Configure an owner cache endpoint.");
+const hookConfig = NodePath.join(NodeOS.homedir(), ".config/t3remix-task-cache/run-hook.json");
 await NodeFSP.mkdir(NodePath.dirname(hookConfig), { recursive: true });
 await NodeFSP.writeFile(
   hookConfig,
@@ -16,12 +25,12 @@ await NodeFSP.writeFile(
     module: NodePath.join(root, "infra/task-cache/src/runHook.ts"),
   }),
 );
-const { endpoint } = JSON.parse(
-  await NodeFSP.readFile(NodePath.join(root, ".task-cache.json"), "utf8"),
-);
 const token = process.env.T3_TASK_CACHE_READ_TOKEN;
 if (!token || token.length < 32) throw new Error("Missing task-cache read credential");
-const credentialFile = NodePath.join(NodeOS.homedir(), ".config/t3-task-cache/credentials.json");
+const credentialFile = NodePath.join(
+  NodeOS.homedir(),
+  ".config/t3remix-task-cache/credentials.json",
+);
 await NodeFSP.mkdir(NodePath.dirname(credentialFile), { recursive: true, mode: 0o700 });
 await NodeFSP.writeFile(
   credentialFile,

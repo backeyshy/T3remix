@@ -1,4 +1,3 @@
-/* oxlint-disable t3code/no-global-process-runtime -- Standalone setup must run before workspace dependencies are installed. */
 // @effect-diagnostics nodeBuiltinImport:off - standalone bootstrap also runs before dependencies are installed.
 // @effect-diagnostics globalConsole:off globalFetch:off globalDate:off - interactive setup and endpoint verification.
 import * as NodeCrypto from "node:crypto";
@@ -7,17 +6,18 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
 import * as NodeReadlinePromises from "node:readline/promises";
+import { allowedCacheEndpoint } from "../src/remoteCache.ts";
 import { patchNativeCli } from "../src/nativeHook.js";
 
 const home = NodeOS.homedir();
 const root = NodePath.resolve(import.meta.dirname, "../../..");
-const state = NodePath.join(home, ".config/t3-task-cache");
+const state = NodePath.join(home, ".config/t3remix-task-cache");
 const nonInteractive = process.argv.includes("--non-interactive");
-const installed = NodePath.join(home, ".local/share/t3-task-cache");
-const hookConfig = NodePath.join(home, ".config/vite-plus/run-hook.json");
-const legacySourceLine = '. "$HOME/.config/t3-task-cache/env"';
+const installed = NodePath.join(home, ".local/share/t3remix-task-cache");
+const hookConfig = NodePath.join(home, ".config/t3remix-task-cache/run-hook.json");
+const legacySourceLine = '. "$HOME/.config/t3remix-task-cache/env"';
 const sourceLine =
-  '[ ! -r "$HOME/.config/t3-task-cache/env" ] || . "$HOME/.config/t3-task-cache/env"';
+  '[ ! -r "$HOME/.config/t3remix-task-cache/env" ] || . "$HOME/.config/t3remix-task-cache/env"';
 const profiles = [".profile", ".bashrc", ".bash_profile", ".bash_login", ".zshenv", ".zshrc"];
 if (process.argv.includes("--uninstall")) {
   for (const file of profiles) {
@@ -45,7 +45,7 @@ if (process.argv.includes("--uninstall")) {
   }
   await NodeFSP.rm(NodePath.join(state, "credentials.json"), { force: true });
   await NodeFSP.rm(NodePath.join(state, "env"), { force: true });
-  await NodeFSP.rm(NodePath.join(home, ".cache/t3-task-cache/telemetry"), {
+  await NodeFSP.rm(NodePath.join(home, ".cache/t3remix-task-cache/telemetry"), {
     recursive: true,
     force: true,
   });
@@ -65,9 +65,14 @@ if (process.argv.includes("--uninstall")) {
   process.exit(0);
 }
 
-const { endpoint: defaultEndpoint } = JSON.parse(
-  await NodeFSP.readFile(NodePath.join(root, ".task-cache.json"), "utf8"),
-);
+const defaultEndpoint =
+  process.env.T3_CACHE_SETUP_URL ??
+  (await NodeFSP.readFile(NodePath.join(root, ".task-cache.json"), "utf8")
+    .then((text) => String(JSON.parse(text).endpoint ?? ""))
+    .catch((error) => {
+      if (error.code === "ENOENT") return "";
+      throw error;
+    }));
 let credentials: Record<string, { name: string; token: string }> = {};
 try {
   credentials = JSON.parse(
@@ -138,39 +143,18 @@ try {
 if (!name || !token || !/^[a-z0-9-]{1,64}$/.test(name) || token.length < 32)
   throw new Error("A valid developer name and credential token are required.");
 const url = new URL(endpoint);
-if (
-  (url.protocol !== "https:" &&
-    !(
-      url.protocol === "http:" &&
-      (url.hostname === "localhost" ||
-        /^127(?:\.\d{1,3}){3}$/.test(url.hostname) ||
-        url.hostname === "[::1]")
-    )) ||
-  url.username ||
-  url.password ||
-  url.search ||
-  url.hash
-)
+if (!allowedCacheEndpoint(endpoint))
   throw new Error(
     "Use an HTTPS cache endpoint without embedded credentials, query, or fragment (HTTP is only allowed on loopback).",
   );
 endpoint = url.href.replace(/\/$/, "");
-const response = await fetch(`${endpoint}/telemetry`, {
+const response = await fetch(`${endpoint}/verify`, {
   method: "POST",
   headers: {
     Authorization: `Basic ${Buffer.from(`${name}:${token}`).toString("base64")}`,
     "Content-Type": "application/json",
   },
-  body: JSON.stringify({
-    id: NodeCrypto.randomBytes(32).toString("hex"),
-    recordedAt: Date.now(),
-    host: NodeOS.hostname(),
-    platform: NodeOS.platform(),
-    arch: NodeOS.arch(),
-    ci: false,
-    runId: "setup",
-    tasks: [],
-  }),
+  redirect: "error",
   signal: AbortSignal.timeout(10_000),
 });
 await response.body?.cancel();
@@ -215,8 +199,6 @@ await NodeFSP.writeFile(NodePath.join(installed, "package.json"), '{"type":"modu
 for (const file of [
   "runHook.ts",
   "remoteCache.ts",
-  "flush.ts",
-  "telemetry.ts",
   "nativeHook.js",
   "nativeRunHook.js",
   "preload.mjs",
@@ -224,7 +206,22 @@ for (const file of [
   const destination = NodePath.join(installed, file);
   const temporary = `${destination}.${NodeCrypto.randomUUID()}.tmp`;
   try {
-    await NodeFSP.copyFile(NodePath.join(import.meta.dirname, "../src", file), temporary);
+    if (file === "remoteCache.ts") {
+      const source = await NodeFSP.readFile(
+        NodePath.join(import.meta.dirname, "../src", file),
+        "utf8",
+      );
+      await NodeFSP.copyFile(
+        NodePath.join(root, "packages/shared/src/relayUrl.ts"),
+        NodePath.join(installed, "relayUrl.ts"),
+      );
+      await NodeFSP.writeFile(
+        temporary,
+        source.replace("../../../packages/shared/src/relayUrl.ts", "./relayUrl.ts"),
+      );
+    } else {
+      await NodeFSP.copyFile(NodePath.join(import.meta.dirname, "../src", file), temporary);
+    }
     await NodeFSP.rename(temporary, destination);
   } finally {
     await NodeFSP.rm(temporary, { force: true });

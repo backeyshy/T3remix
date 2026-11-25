@@ -161,7 +161,9 @@ const layerCapabilities = Layer.effectContext(
             return yield* new ConnectionBlockedError({
               reason: "authentication",
               detail: m(
-                msg("Sign in to {product} to connect this environment.", { product: "T3 Connect" }),
+                msg("Sign in to {product} to connect this environment.", {
+                  product: "Workbench Connect",
+                }),
               ),
             });
           }
@@ -177,7 +179,9 @@ const layerCapabilities = Layer.effectContext(
           if (token === null) {
             return yield* new ConnectionBlockedError({
               reason: "authentication",
-              detail: m(msg("The {product} session is unavailable.", { product: "T3 Connect" })),
+              detail: m(
+                msg("The {product} session is unavailable.", { product: "Workbench Connect" }),
+              ),
             });
           }
           return token;
@@ -190,9 +194,6 @@ const layerCapabilities = Layer.effectContext(
           bearerToken: Effect.succeedNone,
         }),
       ),
-      Context.add(ClientCapabilities.AnalyticsDevice, {
-        id: storage.loadOrCreateAnalyticsDeviceId.pipe(Effect.option),
-      }),
       Context.add(
         ClientCapabilities.RelayDeviceIdentity,
         ClientCapabilities.RelayDeviceIdentity.of({

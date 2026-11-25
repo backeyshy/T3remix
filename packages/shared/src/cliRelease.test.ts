@@ -1,8 +1,21 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { cliArchiveTarCommand, newestCliReleaseVersion, parseChecksums } from "./cliRelease.ts";
+import { isSelfHostedSource, cliArchiveTarCommand, parseChecksums } from "./cliRelease.ts";
 
 describe("cliRelease", () => {
+  it("accepts local and fork sources and blocks upstream distributions", () => {
+    for (const source of [
+      "https://app.t3.codes",
+      "https://raw.githubusercontent.com/PingDotGG/t3code/main/file",
+      "https://registry.npmjs.org/t3/latest",
+      "https://api.github.com/repos/pingdotgg/t3code/releases",
+    ]) {
+      expect(isSelfHostedSource(source)).toBe(false);
+    }
+    expect(isSelfHostedSource("https://github.com/backeyshy/T3remix")).toBe(true);
+    expect(isSelfHostedSource("http://localhost:8000/t3/releases")).toBe(true);
+  });
+
   it("parses sha256sum output including binary-mode markers", () => {
     const checksums = parseChecksums(
       [
@@ -23,20 +36,5 @@ describe("cliRelease", () => {
       "D:\\Win\\System32\\tar.exe",
     );
     expect(cliArchiveTarCommand("win32", {})).toBe("C:\\Windows\\System32\\tar.exe");
-  });
-
-  it("picks the newest non-draft release on the requested channel", () => {
-    const releases = [
-      { tag_name: "v1.2.4-preview.20260912.9", draft: true },
-      { tag_name: "v1.2.4-preview.20260912.8" },
-      { tag_name: "v1.2.4-nightly.20260912.7" },
-      { tag_name: "desktop-preview" },
-      { tag_name: "v1.2.3" },
-      { tag_name: "v1.2.3-nightly.20260911.2" },
-    ];
-    expect(newestCliReleaseVersion(releases, "preview")).toBe("1.2.4-preview.20260912.8");
-    expect(newestCliReleaseVersion(releases, "nightly")).toBe("1.2.4-nightly.20260912.7");
-    expect(newestCliReleaseVersion(releases, "stable")).toBe("1.2.3");
-    expect(newestCliReleaseVersion([{ tag_name: "v1.2.3" }], "preview")).toBeUndefined();
   });
 });

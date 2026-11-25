@@ -1,12 +1,13 @@
 import * as Schema from "effect/Schema";
 
+import { isUpstreamServiceHostname } from "./relayUrl.ts";
 import { parseUrl } from "./url.ts";
 
 const PAIRING_TOKEN_PARAM = "token";
 const HOSTED_PAIRING_HOST_PARAM = "host";
 const HOSTED_PAIRING_LABEL_PARAM = "label";
 const PAIRING_APP_LINK_PARAM = "pairingUrl";
-const APP_LINK_PROTOCOL = /^t3code(?:-[a-z]+)?:$/;
+const APP_LINK_PROTOCOL = /^t3remix(?:-[a-z]+)?:$/;
 const SUPPORTED_REMOTE_BACKEND_PROTOCOLS = new Set(["http:", "https:", "ws:", "wss:"]);
 
 export const readHashParams = (url: URL): URLSearchParams =>
@@ -74,7 +75,7 @@ export const RemotePairingTargetError = Schema.Union([
 export type RemotePairingTargetError = typeof RemotePairingTargetError.Type;
 
 const hasSupportedRemoteBackendProtocol = (url: URL): boolean =>
-  SUPPORTED_REMOTE_BACKEND_PROTOCOLS.has(url.protocol);
+  SUPPORTED_REMOTE_BACKEND_PROTOCOLS.has(url.protocol) && !isUpstreamServiceHostname(url.hostname);
 
 const normalizeRemoteBaseUrl = (
   rawValue: string,
@@ -178,22 +179,23 @@ export const readHostedPairingRequest = (url: URL): HostedPairingRequest | null 
   const token = getPairingTokenFromUrl(url)?.trim() ?? "";
   const label = url.searchParams.get(HOSTED_PAIRING_LABEL_PARAM)?.trim() ?? "";
 
-  if (!host || !token) {
+  if (!host || !token || isUpstreamServiceHostname(url.hostname)) {
     return null;
   }
 
-  return {
-    host,
-    token,
-    label,
-  };
+  try {
+    normalizeRemoteBaseUrl(host, "hosted-pairing-host");
+    return { host, token, label };
+  } catch {
+    return null;
+  }
 };
 
-/** Wraps a pairing URL in the `t3code://pair` link that desktop opens and mobile scans. */
+/** Wraps a pairing URL in the `t3remix://pair` link that desktop opens and mobile scans. */
 export const buildPairingAppLink = (pairingUrl: string): string =>
-  `t3code://pair?${new URLSearchParams([[PAIRING_APP_LINK_PARAM, pairingUrl]])}`;
+  `t3remix://pair?${new URLSearchParams([[PAIRING_APP_LINK_PARAM, pairingUrl]])}`;
 
-/** Reads the pairing URL from a `t3code://pair` link on any app channel scheme. */
+/** Reads the pairing URL from a `t3remix://pair` link on any app channel scheme. */
 export const readPairingAppLink = (value: string): string | null => {
   const url = parseUrl(value);
   if (!url) return null;
@@ -221,6 +223,8 @@ export const resolveRemotePairingTarget = (input: {
       });
     }
     const hostedPairingRequest = readHostedPairingRequest(url);
+    if (url.searchParams.has(HOSTED_PAIRING_HOST_PARAM) && !hostedPairingRequest)
+      throw new RemotePairingUrlInvalidError({});
     if (hostedPairingRequest) {
       const hostedBackendUrl = normalizeRemoteBaseUrl(
         hostedPairingRequest.host,

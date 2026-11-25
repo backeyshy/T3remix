@@ -489,7 +489,7 @@ export function AddEnvironmentDialog({
       type: "success",
       title: gt("Route added"),
       description: gt(
-        "{environment} falls back to T3 Connect when its other routes are unreachable.",
+        "{environment} falls back to Workbench Connect when its other routes are unreachable.",
         { environment: routeTarget.label },
       ),
     });
@@ -499,7 +499,7 @@ export function AddEnvironmentDialog({
       {relayRouteOffer !== null ? (
         <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
           <p className="text-xs text-muted-foreground">
-            <T>This machine is on your T3 Connect account. Use it as a fallback route.</T>
+            <T>This machine is on your Workbench Connect account. Use it as a fallback route.</T>
           </p>
           <Button
             size="xs"
@@ -507,7 +507,7 @@ export function AddEnvironmentDialog({
             disabled={isAddingSavedBackend}
             onClick={() => void addRelayRoute()}
           >
-            <T>Add T3 Connect</T>
+            <T>Add Workbench Connect</T>
           </Button>
         </div>
       ) : null}
@@ -702,7 +702,7 @@ export function AddEnvironmentDialog({
                 )
               : prefill
                 ? gt(
-                    "Create a pairing code on {environment}, in its Settings → Sharing & access or with `t3 auth pairing create`, and enter it here.",
+                    "Create a pairing code on {environment}, in its Settings → Sharing & access or with `t3remix auth pairing create`, and enter it here.",
                     { environment: prefill.label },
                   )
                 : gt("Pair another environment to this client.")}

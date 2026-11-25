@@ -3,7 +3,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
-import { HttpClient } from "effect/http";
+import { FetchHttpClient, HttpClient } from "effect/http";
 import type { HttpBody } from "effect/http";
 import { OtlpSerialization } from "effect/observability";
 
@@ -36,6 +36,9 @@ export const layer = (signal: OtlpSignal) =>
       return Context.make(
         HttpClient.HttpClient,
         client.pipe(
+          HttpClient.transformResponse(
+            Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" }),
+          ),
           HttpClient.tap((response) =>
             response.status >= 200 && response.status < 300
               ? Effect.void

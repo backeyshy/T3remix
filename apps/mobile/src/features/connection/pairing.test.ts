@@ -41,17 +41,25 @@ describe("extractPairingUrlFromQrPayload", () => {
   it("unwraps mobile deep links that carry an encoded pairing url", () => {
     expect(
       extractPairingUrlFromQrPayload(
-        "t3code://pair?pairingUrl=https%3A%2F%2Fremote.example.com%2Fpair%23token%3Dpairing-token",
+        "t3remix://pair?pairingUrl=https%3A%2F%2Fremote.example.com%2Fpair%23token%3Dpairing-token",
       ),
     ).toBe("https://remote.example.com/pair#token=pairing-token");
   });
 });
 
 describe("parsePairingUrl", () => {
+  it.each([
+    "https://app.t3.codes/pair#token=pairing-token",
+    "https://app.t3.codes/pair?host=https://host.example.test#token=pairing-token",
+    "https://my.example.test/pair?host=https://relay.t3.codes#token=pairing-token",
+  ])("does not populate credentials from a blocked pairing URL", (url) => {
+    expect(parsePairingUrl(url)).toEqual({ host: "", code: "" });
+  });
+
   it("reads hosted pairing links into backend host fields", () => {
     expect(
       parsePairingUrl(
-        "https://app.t3.codes/pair?host=https%3A%2F%2Fdesktop.tailnet.ts.net%2F#token=pairing-token",
+        "https://web.example.test/pair?host=https%3A%2F%2Fdesktop.tailnet.ts.net%2F#token=pairing-token",
       ),
     ).toEqual({
       host: "https://desktop.tailnet.ts.net",

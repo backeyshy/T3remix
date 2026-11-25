@@ -10,6 +10,7 @@ import {
   type UsageSummaryInput,
   UsageReadError,
 } from "@t3tools/contracts";
+import { isUpstreamServiceHostname } from "@t3tools/shared/relayUrl";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
@@ -25,7 +26,7 @@ import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
-import { HttpClient, HttpClientResponse } from "effect/http";
+import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
 
 import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 import { formatMalformedUsageWarning } from "@t3tools/shared/usageFormat";
@@ -69,10 +70,18 @@ import {
   type ScanCache,
 } from "./usageScanCache.ts";
 
-const LITELLM_RATES_URL =
-  "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
-const LITELLM_RATES_API_URL =
-  "https://api.github.com/repos/BerriAI/litellm/contents/model_prices_and_context_window.json?ref=main";
+function pricingEndpoint(value: string | undefined): string | null {
+  if (!value || !URL.canParse(value)) return null;
+  const url = new URL(value);
+  return (url.protocol === "https:" || url.protocol === "http:") &&
+    !url.username &&
+    !url.password &&
+    !url.search &&
+    !url.hash &&
+    !isUpstreamServiceHostname(url.hostname)
+    ? url.href
+    : null;
+}
 
 const RATES_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -177,6 +186,7 @@ export const make = Effect.gen(function* () {
   const httpClient = yield* HttpClient.HttpClient;
   const hostEnvironment = yield* HostProcess.Environment;
   const hostPlatform = yield* HostProcess.Platform;
+  const ratesUrl = pricingEndpoint(hostEnvironment.T3CODE_USAGE_PRICING_URL);
   const hostScope = hostEnvironment[DESKTOP_HOST_SCOPE_ENV]?.trim();
   // A mount or a directory's on-disk name does not change under a running server.
   // A miss is not cached: the directory may not exist yet.
@@ -264,14 +274,15 @@ export const make = Effect.gen(function* () {
 
   const pricing = (): UsagePricing => ({
     status: ratesStatus,
-    source: LITELLM_RATES_URL,
+    source: ratesUrl ?? "Local pricing",
     fetchedAt:
       ratesFetchedAtMs === null ? null : DateTime.formatIso(DateTime.makeUnsafe(ratesFetchedAtMs)),
     knownModels: rates.size,
   });
 
-  const fetchRates = (url: string, accept = "application/json") =>
-    httpClient.get(url, { headers: { accept } }).pipe(
+  const fetchRates = (url: string) =>
+    httpClient.get(url, { headers: { accept: "application/json" } }).pipe(
+      Effect.provideService(FetchHttpClient.RequestInit, { redirect: "error" }),
       Effect.flatMap(HttpClientResponse.filterStatusOk),
       Effect.flatMap((response) => response.json),
       Effect.map((document) => {
@@ -304,10 +315,8 @@ export const make = Effect.gen(function* () {
     if (ratesFetchedAtMs !== null && now - ratesFetchedAtMs < maxAgeMs) return;
     if (ratesLastFailedAtMs !== null && now - ratesLastFailedAtMs < RATES_REFRESH_FLOOR_MS) return;
 
-    let fetched = yield* fetchRates(LITELLM_RATES_URL);
-    if (fetched === null) {
-      fetched = yield* fetchRates(LITELLM_RATES_API_URL, "application/vnd.github.raw+json");
-    }
+    if (ratesUrl === null) return;
+    const fetched = yield* fetchRates(ratesUrl);
     if (fetched === null) {
       ratesLastFailedAtMs = yield* Clock.currentTimeMillis;
       if (rates.size > 0) ratesStatus = "cached";

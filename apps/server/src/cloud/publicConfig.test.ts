@@ -23,6 +23,7 @@ it.effect("rejects an insecure runtime relay URL override", () =>
 it.effect("rejects malformed or insecure hosted app URLs", () =>
   Effect.gen(function* () {
     for (const value of [
+      "https://app.t3.codes",
       "app.t3.codes",
       "http://app.t3.codes",
       "https://app.t3.codes/nested",

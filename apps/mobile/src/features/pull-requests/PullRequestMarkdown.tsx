@@ -7,11 +7,7 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 import { useProject } from "../../state/entities";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
-import {
-  PullRequestMedia,
-  PullRequestMediaContext,
-  usePullRequestMediaUrl,
-} from "./PullRequestMedia";
+import { PullRequestMedia, PullRequestMediaContext } from "./PullRequestMedia";
 import { videoMimeType } from "@t3tools/shared/video";
 import { createContext, useContext, useMemo, useState } from "react";
 import {
@@ -29,14 +25,13 @@ import { SelectableMarkdownText } from "../../native/SelectableMarkdownText";
 import { useMarkdownPreviewStyles } from "../files/FileMarkdownPreview";
 import { markdownImageSources } from "../../lib/markdownImageSources";
 import { markdownReferenceDefinitions } from "../../lib/markdownDocument";
-import { FilePreviewGallery, useFilePreviewGallery } from "../../components/ui/FilePreviewGallery";
+import { FilePreviewGallery } from "../../components/ui/FilePreviewGallery";
 import { pullRequestImageSource } from "./pullRequestMediaSource";
 import {
   FilePreviewModal,
   type FilePreviewSource,
   type FilePreviewItem,
 } from "../../components/ui/FilePreviewModal";
-import { ThreadMarkdownImageView } from "../threads/ThreadMarkdownImage";
 import type { MarkdownImageRenderer } from "../../native/SelectableMarkdownText";
 import type { SelectableMarkdownTextProps } from "../../native/SelectableMarkdownText.types";
 
@@ -79,34 +74,6 @@ export function PullRequestMarkdownRepository(props: {
         </LineBreaksContext>
       </GithubEmojiContext>
     </AutolinksContext>
-  );
-}
-
-function MarkdownImage(props: {
-  readonly href: string;
-  readonly alt: string | null;
-  readonly onPreview: (source: FilePreviewSource) => void;
-}) {
-  const media = usePullRequestMediaUrl(props.href);
-  const context = useContext(PullRequestMediaContext);
-  const withGallery = useFilePreviewGallery();
-  return (
-    <ThreadMarkdownImageView
-      uri={media.uri}
-      sourceKey={props.href}
-      cacheKey={media.cacheKey}
-      unavailable={media.unavailable || !/^https?:\/\//i.test(props.href)}
-      alt={props.alt}
-      onPressPreview={(source) =>
-        props.onPreview(
-          withGallery({
-            ...pullRequestImageSource(props.href, context),
-            name: source.name,
-            sourceIdentifier: source.sourceIdentifier,
-          }),
-        )
-      }
-    />
   );
 }
 
@@ -238,7 +205,11 @@ function PullRequestMarkdownContent(props: {
   };
   const [preview, setPreview] = useState<FilePreviewSource | null>(null);
   const renderImage: MarkdownImageRenderer = (image) => (
-    <MarkdownImage href={resolveMediaUrl(image.href)} alt={image.alt} onPreview={setPreview} />
+    <PullRequestMedia
+      url={resolveMediaUrl(image.href)}
+      kind="image"
+      {...(image.alt ? { caption: image.alt } : {})}
+    />
   );
   const styles = useMarkdownPreviewStyles();
   return (

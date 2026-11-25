@@ -87,8 +87,8 @@ export function ToolActivityIconView(props: {
   if (!props.icon) {
     return <WorkEntryIcon name={props.fallbackName} className={fallbackClassName} />;
   }
-  if (props.icon._tag === "website") {
-    const src = toolActivityFaviconUrl(props.icon, resolvedTheme, 32);
+  if (props.icon._tag === "website" || props.icon._tag === "themed-logo") {
+    const src = toolActivityFaviconUrl(props.icon, resolvedTheme);
     return src ? (
       <ToolActivityImageIcon
         key={src}
@@ -102,22 +102,7 @@ export function ToolActivityIconView(props: {
       <WorkEntryIcon name={props.fallbackName} className={fallbackClassName} />
     );
   }
-  if (props.icon._tag === "themed-logo") {
-    const src =
-      resolvedTheme === "dark"
-        ? (props.icon.logoUrlDark ?? props.icon.logoUrl)
-        : props.icon.logoUrl;
-    return (
-      <ToolActivityImageIcon
-        key={src}
-        cacheKey={src}
-        src={src}
-        fallbackName={props.fallbackName}
-        className={props.className}
-        muted={props.muted}
-      />
-    );
-  }
+
   return (
     <NativeAppToolActivityIcon
       app={props.icon.app}

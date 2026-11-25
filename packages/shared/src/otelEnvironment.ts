@@ -8,6 +8,7 @@ import * as SchemaTransformation from "effect/SchemaTransformation";
 
 import type { OtlpEndpointSource } from "@t3tools/contracts";
 
+import { isUpstreamServiceUrl } from "./relayUrl.ts";
 import { OtlpHeadersFromString, OtlpProtocol, type SignalExport } from "./observability.ts";
 
 type OtlpSignalName = "TRACES" | "METRICS" | "LOGS";
@@ -176,7 +177,7 @@ const exporter = (name: string): Config.Config<Setting<Exporter>> =>
         ? { value }
         : {
             value,
-            warning: `${name} names ${ignored.join(", ")}, which T3 Code does not export to, so ${ignored.length === 1 ? "it was" : "they were"} ignored`,
+            warning: `${name} names ${ignored.join(", ")}, which Remix Workbench does not export to, so ${ignored.length === 1 ? "it was" : "they were"} ignored`,
           };
     }),
   );
@@ -343,7 +344,7 @@ export const isCiEnvironment = (env: Readonly<Record<string, string | undefined>
   });
 
 /** The cross-tool `DO_NOT_TRACK=1` convention turns off product analytics and relay tracing. */
-export const isDoNotTrackSet = (env: Readonly<Record<string, string | undefined>>) =>
+const isDoNotTrackSet = (env: Readonly<Record<string, string | undefined>>) =>
   T3CODE_TRUE.includes(env.DO_NOT_TRACK?.trim().toLowerCase() ?? "");
 
 export const isRelayTracingEnabled = (env: Readonly<Record<string, string | undefined>>) =>
@@ -383,6 +384,7 @@ export const resolveSignalEndpoint = (
   }
   const t3Url = blankAsUnset(t3.url);
   if (t3Url !== undefined) {
+    if (isUpstreamServiceUrl(t3Url)) return undefined;
     return {
       url: t3Url,
       export: t3.export,
@@ -390,7 +392,7 @@ export const resolveSignalEndpoint = (
       variable: `T3CODE_OTLP_${signal.toUpperCase()}_URL`,
     };
   }
-  return OtelSignal.$match(otel[signal], {
+  const endpoint = OtelSignal.$match(otel[signal], {
     Export: ({ url, variable, protocol, headers }): SignalEndpoint => ({
       url,
       export: { protocol, headers, exportIntervalMs: t3.export.exportIntervalMs },
@@ -407,6 +409,7 @@ export const resolveSignalEndpoint = (
       return { url, export: t3.export, source: url === settingsUrl ? "settings" : "bootstrap" };
     },
   });
+  return endpoint && !isUpstreamServiceUrl(endpoint.url) ? endpoint : undefined;
 };
 
 /** Give OTLP exporters the accepted resource attributes so their own decoding cannot fail. */

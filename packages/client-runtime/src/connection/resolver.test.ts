@@ -185,7 +185,25 @@ describe("ConnectionResolver", () => {
       const error = yield* Effect.flip(broker.prepare(catalogEntry(target)));
 
       expect(error).toMatchObject({ reason: "unsupported" });
-      expect(error.message).toContain("Update T3 Code on Compatible environment");
+      expect(error.message).toContain("Update Remix Workbench on Compatible environment");
+    }),
+  );
+
+  it.effect("rejects saved upstream WebSocket endpoints before fetching or authorizing", () =>
+    Effect.gen(function* () {
+      const dependencies = yield* makeDependencies();
+      const broker = yield* ConnectionResolver.ConnectionResolver.pipe(
+        Effect.provide(dependencies),
+      );
+      const target = new PrimaryConnectionTarget({
+        environmentId: ENVIRONMENT_ID,
+        label: "Old connection",
+        httpBaseUrl: "https://workstation.example.com",
+        wsBaseUrl: "wss://prod-a1.t3coderelay.com",
+      });
+      expect(yield* Effect.flip(broker.prepare(catalogEntry(target)))).toMatchObject({
+        reason: "configuration",
+      });
     }),
   );
 
@@ -205,7 +223,7 @@ describe("ConnectionResolver", () => {
         label: "Primary",
         httpBaseUrl: "http://127.0.0.1:3777",
         socketUrl:
-          "ws://127.0.0.1:3777/ws?clientSurface=web&clientDeviceType=desktop&connectionMethod=direct&orchestrationProtocol=2&clientCapabilities=settingsSecretReferences%2ChttpUsageLimitSources",
+          "ws://127.0.0.1:3777/ws?clientSurface=web&connectionMethod=direct&orchestrationProtocol=2&clientCapabilities=settingsSecretReferences%2ChttpUsageLimitSources",
         httpAuthorization: null,
         target,
         // The shell reads the server's build and shell flags here before the socket opens.

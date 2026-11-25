@@ -19,7 +19,7 @@ describe("resolveCloudPublicConfig", () => {
       }),
     ).toEqual({
       clerk: {
-        publishableKey: "pk_test_example",
+        publishableKey: null,
         jwtTemplate: "t3-relay",
       },
       relay: {

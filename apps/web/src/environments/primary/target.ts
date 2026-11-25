@@ -1,3 +1,4 @@
+import { isUpstreamServiceHostname } from "@t3tools/shared/relayUrl";
 import { PRIMARY_LOCAL_ENVIRONMENT_ID, type DesktopEnvironmentBootstrap } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 
@@ -92,9 +93,12 @@ function parseTargetUrl(input: {
   readonly urlKind: PrimaryEnvironmentUrlKind;
 }): URL {
   try {
-    return input.baseUrl === undefined
-      ? new URL(input.rawValue)
-      : new URL(input.rawValue, input.baseUrl);
+    const url =
+      input.baseUrl === undefined
+        ? new URL(input.rawValue)
+        : new URL(input.rawValue, input.baseUrl);
+    if (isUpstreamServiceHostname(url.hostname)) throw new Error("Upstream service disabled");
+    return url;
   } catch (cause) {
     throw new PrimaryEnvironmentUrlInvalidError({
       source: input.source,

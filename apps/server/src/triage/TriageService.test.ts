@@ -1,3 +1,4 @@
+import { beforeEach, afterEach, vi } from "vite-plus/test";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { GitCommandError } from "@t3tools/contracts";
@@ -15,6 +16,9 @@ import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as TriageService from "./TriageService.ts";
 import { pickSourceRef } from "./TriageService.ts";
+
+beforeEach(() => vi.stubEnv("T3CODE_TRIAGE_REPOSITORY", "https://example.org/fork.git"));
+afterEach(() => vi.unstubAllEnvs());
 
 const MAIN = "a1dc856ee61278d0199c36d4bcdef5fdea4d21fe\trefs/heads/main";
 

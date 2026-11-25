@@ -23,7 +23,7 @@ const tracesTo = (policy?: ManagedPolicyDocument) =>
 
 it.effect("a policy with telemetry off stops relay tracing to T3 Connect", () =>
   Effect.gen(function* () {
-    assert.isTrue(yield* tracesTo());
+    assert.isFalse(yield* tracesTo());
     assert.isFalse(
       yield* tracesTo({
         schemaVersion: 1,

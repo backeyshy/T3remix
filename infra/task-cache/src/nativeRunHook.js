@@ -16,7 +16,7 @@ export async function startRunHook(command, cwd = process.cwd(), resolveWorkspac
   if (command !== "run") return;
   try {
     const configured = await readJson(
-      NodePath.join(NodeOS.homedir(), ".config/vite-plus/run-hook.json"),
+      NodePath.join(NodeOS.homedir(), ".config/t3remix-task-cache/run-hook.json"),
     );
     let root = cwd;
     while (true) {

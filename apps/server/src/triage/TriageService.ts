@@ -1,3 +1,5 @@
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import { isSelfHostedSource } from "@t3tools/shared/cliRelease";
 import {
   type AuthClientPresentationMetadata,
   ServerPrepareTriageError,
@@ -16,8 +18,6 @@ import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import { buildTriageAppPrompt, type TriageSourceClone } from "./triagePrompt.ts";
 import { triageSourceCacheDir, writeTriageSession } from "./triageSession.ts";
 
-const T3CODE_REPOSITORY_URL = "https://github.com/pingdotgg/t3code";
-
 // No tty: a credential prompt would hang until the timeout, so git must fail
 // instead. An empty GIT_ASKPASS also skips core.askPass and SSH_ASKPASS helpers.
 const GIT_ENV = {
@@ -25,9 +25,12 @@ const GIT_ENV = {
   GIT_ASKPASS: "",
   // English messages without overriding LC_CTYPE, which a global post-checkout hook inherits.
   LANGUAGE: "C",
+  GIT_CONFIG_COUNT: "1",
+  GIT_CONFIG_KEY_0: "http.followRedirects",
+  GIT_CONFIG_VALUE_0: "false",
 } satisfies NodeJS.ProcessEnv;
 
-/** Starts in-app triage sessions: the same files `t3 triage` writes, plus a source clone. */
+/** Starts in-app triage sessions: the same files `t3remix triage` writes, plus a source clone. */
 export class TriageService extends Context.Service<
   TriageService,
   {
@@ -43,7 +46,7 @@ const describeClient = (client: AuthClientPresentationMetadata) =>
     client.appVersion === undefined ? undefined : `version ${client.appVersion}`,
     client.os === undefined ? undefined : `on ${client.os}`,
     client.browser === undefined ? undefined : `in ${client.browser}`,
-    client.webDeployment === "hosted" ? "(app.t3.codes)" : undefined,
+    client.webDeployment === "hosted" ? "(hosted web app)" : undefined,
   ]
     .filter((part) => part !== undefined)
     .join(" ");
@@ -76,6 +79,7 @@ const make = Effect.gen(function* () {
   // finished clone moves in with a rename.
   const stagingDir = `${sourceDir}-staging`;
   const serverVersion = packageJson.version;
+  const sourceRepository = (yield* HostProcess.Environment).T3CODE_TRIAGE_REPOSITORY?.trim() ?? "";
 
   const runGit = (operation: string, cwd: string, args: ReadonlyArray<string>, timeoutMs: number) =>
     git.execute({ operation: `TriageService.${operation}`, cwd, args, timeoutMs, env: GIT_ENV });
@@ -97,7 +101,7 @@ const make = Effect.gen(function* () {
       yield* runGit(
         "addSourceRemote",
         staging,
-        ["remote", "add", "origin", T3CODE_REPOSITORY_URL],
+        ["remote", "add", "origin", sourceRepository],
         10_000,
       );
       yield* runGit(
@@ -130,7 +134,7 @@ const make = Effect.gen(function* () {
     const listed = yield* runGit(
       "resolveSourceRef",
       sourceDir,
-      ["ls-remote", T3CODE_REPOSITORY_URL, tag, `${tag}^{}`, "refs/heads/main"],
+      ["ls-remote", sourceRepository, tag, `${tag}^{}`, "refs/heads/main"],
       // Triage still starts without source; a dead network should not stall it.
       5_000,
     );
@@ -187,15 +191,17 @@ const make = Effect.gen(function* () {
 
   const prepare: TriageService["Service"]["prepare"] = Effect.fn("TriageService.prepare")(
     function* (input) {
-      const sourceClone = yield* startSourceClone().pipe(
-        Effect.catch((error) =>
-          Effect.succeed<TriageSourceClone>({
-            _tag: "failed",
-            serverVersion,
-            reason: error.message,
-          }),
-        ),
-      );
+      const sourceClone = !isSelfHostedSource(sourceRepository)
+        ? undefined
+        : yield* startSourceClone().pipe(
+            Effect.catch((error) =>
+              Effect.succeed<TriageSourceClone>({
+                _tag: "failed",
+                serverVersion,
+                reason: error.message,
+              }),
+            ),
+          );
       const session = yield* writeTriageSession({
         baseDir: config.baseDir,
         paths: config,

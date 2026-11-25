@@ -1,3 +1,4 @@
+import { isSelfHostedSource } from "@t3tools/shared/cliRelease";
 /**
  * DesktopUpdatePolicy - what the administrator's managed policy allows the desktop updater to do.
  * The desktop reads the policy file itself, before any backend runs, and fails closed: a policy it
@@ -39,6 +40,14 @@ export const unmanagedUpdatePolicy: UpdatePolicy = {
 function resolveUpdatePolicy(document: ManagedPolicyDocument | undefined): UpdatePolicy {
   const updates = document?.limits?.updates;
   if (document === undefined || updates === undefined) return unmanagedUpdatePolicy;
+  if (updates.feedUrl && !isSelfHostedSource(updates.feedUrl)) {
+    return {
+      mode: "off",
+      feedUrl: undefined,
+      allowNightly: false,
+      message: "Configure your own desktop update feed.",
+    };
+  }
   return {
     mode: updates.mode,
     feedUrl: updates.feedUrl,
@@ -76,7 +85,7 @@ const make = Effect.gen(function* () {
             mode: "off",
             feedUrl: undefined,
             allowNightly: false,
-            message: `Updates are off because T3 Code cannot use the managed policy at ${error.path}. Contact your administrator.`,
+            message: `Updates are off because Remix Workbench cannot use the managed policy at ${error.path}. Contact your administrator.`,
           }),
         ),
     }),

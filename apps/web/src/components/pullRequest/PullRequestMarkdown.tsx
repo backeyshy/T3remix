@@ -8,7 +8,7 @@ import {
   type EnvironmentId,
   type ScopedThreadRef,
 } from "@t3tools/contracts";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import type { MarkdownExtensions } from "~/markdown/wordsHast";
 
 import { useAssetUrlRefresh, useAssetUrlState } from "~/assets/assetUrls";
@@ -87,6 +87,7 @@ function PullRequestBodySegmentView({
   const context = useContext(PullRequestMarkdownContext);
   const listPanelRef = useContext(PullRequestMarkdownPanelContext);
   const repository = context?.repository ?? undefined;
+  const [openedUrl, setOpenedUrl] = useState<string | null>(null);
   if (segment.kind === "table") {
     return (
       <div className="space-y-3">
@@ -146,6 +147,13 @@ function PullRequestBodySegmentView({
     );
   }
   const hostMedia = sourceControlClients.mediaUrl(segment.url);
+  if (segment.media === "video" && openedUrl !== segment.url) {
+    return (
+      <button type="button" className="underline" onClick={() => setOpenedUrl(segment.url)}>
+        {gt("Pull request video")}
+      </button>
+    );
+  }
   if (segment.media === "video" && hostMedia !== null) {
     return (
       <PullRequestHostVideo

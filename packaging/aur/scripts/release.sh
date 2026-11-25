@@ -2,16 +2,16 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-repo='pingdotgg/t3code'
+repo='backeyshy/T3remix'
 tag="${RELEASE_TAG:?RELEASE_TAG is required}"
 pkgrel="${PKGREL:-1}"
 
 if [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  pkgname='t3code-bin'
-  asset_prefix='T3-Code'
+  pkgname='remix-workbench-bin'
+  asset_prefix='Remix-Workbench'
 elif [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}\.[0-9]+$ ]]; then
-  pkgname='t3code-nightly-bin'
-  asset_prefix='T3-Code-Nightly'
+  pkgname='remix-workbench-nightly-bin'
+  asset_prefix='Remix-Workbench-Nightly'
 else
   echo "Release $tag does not publish an AUR package."
   exit 0
@@ -23,7 +23,7 @@ release_json="$(gh api "repos/$repo/releases/tags/$tag")"
 declare -A appimage_names appimage_checksums
 for architecture in x86_64 aarch64; do
   upstream_arch="${architecture/aarch64/arm64}"
-  versioned_name="T3-Code-${version}-${upstream_arch}.AppImage"
+  versioned_name="Remix-Workbench-${version}-${upstream_arch}.AppImage"
   versionless_name="${asset_prefix}-${upstream_arch}.AppImage"
   if ! asset="$(jq -er --arg versioned "$versioned_name" \
     --arg versionless "$versionless_name" '
@@ -80,15 +80,15 @@ run_as_builder makepkg --printsrcinfo > .SRCINFO
 run_as_builder makepkg --syncdeps --cleanbuild --clean --noconfirm
 run_as_builder namcap "$(run_as_builder makepkg --packagelist)"
 
-if [[ -z "${AUR_SSH_PRIVATE_KEY:-}" ]]; then
-  echo 'AUR_SSH_PRIVATE_KEY is not set; build complete, skipping publish.'
+if [[ -z "${T3REMIX_AUR_SSH_PRIVATE_KEY:-}" ]]; then
+  echo 'T3REMIX_AUR_SSH_PRIVATE_KEY is not set; build complete, skipping publish.'
   exit 0
 fi
 
 key_file="$work_dir/id_ed25519"
 known_hosts_file="$work_dir/known_hosts"
 aur_dir="$work_dir/$pkgname"
-printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > "$key_file"
+printf '%s\n' "$T3REMIX_AUR_SSH_PRIVATE_KEY" > "$key_file"
 chmod 600 "$key_file"
 printf '%s\n' \
   'aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN' \
@@ -98,9 +98,9 @@ export GIT_SSH_COMMAND="ssh -i $key_file -o IdentitiesOnly=yes -o UserKnownHosts
 git clone "ssh://aur@aur.archlinux.org/$pkgname.git" "$aur_dir"
 cp PKGBUILD .SRCINFO "$aur_dir/"
 cd "$aur_dir"
-git rm --ignore-unmatch LICENSE .upstream-commit t3code-icon.png
-git config user.name 't3code-ci'
-git config user.email 't3code-ci@users.noreply.github.com'
+git rm --ignore-unmatch LICENSE .upstream-commit remix-workbench-icon.png
+git config user.name 'remix-workbench-ci'
+git config user.email 'remix-workbench-ci@users.noreply.github.com'
 git add -A
 
 if git diff --cached --quiet; then

@@ -1,3 +1,4 @@
+import { isUpstreamServiceUrl } from "@t3tools/shared/relayUrl";
 import { MarkedText, markedTextEnglish, translatableMessage } from "../errors/translatable.ts";
 import { msg } from "gt-i18n";
 import {
@@ -195,13 +196,16 @@ export const executeEnvironmentHttpRequest = <A, E, R>(
   timeoutMs: number,
   request: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, RemoteEnvironmentRequestError, R> =>
-  request.pipe(
-    Effect.timeoutOption(Duration.millis(timeoutMs)),
-    Effect.flatMap(
-      Option.match({
-        onNone: () => Effect.fail(new RemoteEnvironmentAuthTimeoutError({ requestUrl, timeoutMs })),
-        onSome: Effect.succeed,
-      }),
-    ),
-    Effect.catch((cause) => failRemoteRequest(requestUrl, cause)),
-  );
+  isUpstreamServiceUrl(requestUrl)
+    ? failRemoteRequest(requestUrl, "Upstream service disabled")
+    : request.pipe(
+        Effect.timeoutOption(Duration.millis(timeoutMs)),
+        Effect.flatMap(
+          Option.match({
+            onNone: () =>
+              Effect.fail(new RemoteEnvironmentAuthTimeoutError({ requestUrl, timeoutMs })),
+            onSome: Effect.succeed,
+          }),
+        ),
+        Effect.catch((cause) => failRemoteRequest(requestUrl, cause)),
+      );

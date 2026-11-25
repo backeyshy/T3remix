@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
-import { relayClerkTokenOptions } from "@t3tools/shared/relayAuth";
-import { normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
+import { normalizeClerkPublishableKey, relayClerkTokenOptions } from "@t3tools/shared/relayAuth";
+import { isUpstreamServiceHostname, normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
 import * as Schema from "effect/Schema";
 
 export class CloudPublicConfigMissingError extends Schema.TaggedError<CloudPublicConfigMissingError>()(
@@ -50,7 +50,9 @@ function normalizeSecureUrl(value: unknown): string | null {
   }
   try {
     const url = new URL(raw);
-    return url.protocol === "https:" ? url.toString() : null;
+    return url.protocol === "https:" && !isUpstreamServiceHostname(url.hostname)
+      ? url.toString()
+      : null;
   } catch {
     return null;
   }
@@ -59,7 +61,7 @@ function normalizeSecureUrl(value: unknown): string | null {
 export function resolveCloudPublicConfig(extra: ExpoExtra = Constants.expoConfig?.extra) {
   return {
     clerk: {
-      publishableKey: trimNonEmpty(extra?.clerk?.publishableKey),
+      publishableKey: normalizeClerkPublishableKey(trimNonEmpty(extra?.clerk?.publishableKey)),
       jwtTemplate: trimNonEmpty(extra?.clerk?.jwtTemplate),
     },
     relay: {

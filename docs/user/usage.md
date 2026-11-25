@@ -61,8 +61,7 @@ environments are selected by default. The dropdown shows which environments are 
 results appear as each one responds, and figures still updating are dimmed. Cursor shows its last
 saved totals first, then updates them when Cursor's API responds.
 
-If recent work is missing or a new model shows no cost, refresh to rescan session history and
-update model pricing.
+Refresh to rescan session history. Usage reads saved model prices locally. To refresh prices from your own service, set `T3CODE_USAGE_PRICING_URL` on the server to a LiteLLM-format JSON price table. A model with no known price still contributes to token totals.
 
 ## Set custom model prices
 
@@ -94,7 +93,7 @@ the dialog.
 ## Show only some models
 
 To count only some models, or to leave some out, add `usageModelFilter` to the server's
-`settings.json` in its `userdata` directory, such as `~/.t3/userdata/settings.json`:
+`settings.json` in its `userdata` directory, such as `~/.t3remix/userdata/settings.json`:
 
 ```json
 {

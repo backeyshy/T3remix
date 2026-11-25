@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
   s.summary = 'Webview whose localhost is another T3 Code environment.'
   s.description = "Loads an environment's loopback pages on the device through the server's preview tunnel, keeping their localhost origin."
   s.author = 'T3 Tools'
-  s.homepage = 'https://t3tools.com'
+  s.homepage = 'https://github.com/backeyshy/T3remix'
   s.platform = :ios, '18.0'
   s.source = { :path => '.' }
   s.static_framework = true

@@ -247,6 +247,20 @@ it("shows unavailable audio when a workspace embed has no thread", async () => {
   expect(screen.container.querySelector("audio")).toBeNull();
 });
 
+it("renders external markdown media as links without preloading it", async () => {
+  setup();
+  const urls = [
+    "https://t3.codes/pixel.png",
+    "https://media.example/clip.mp4",
+    "//media.example/sound.mp3",
+  ];
+  await using screen = await renderText(urls.map((url) => `![Media](${url})`).join("\n\n"));
+  expect(screen.container.querySelectorAll("img,video,audio,source")).toHaveLength(0);
+  expect(
+    [...screen.container.querySelectorAll("a")].map((link) => new URL(link.href).pathname),
+  ).toEqual(["/pixel.png", "/clip.mp4", "/sound.mp3"]);
+});
+
 it("loads a host image through the page's own route when there is no environment", async () => {
   setup();
   const pixel =
@@ -374,15 +388,14 @@ describe("ChatMarkdown favicon privacy", () => {
     const markdown = (url: string) => <ChatMarkdown cwd="/tmp/project" text={`[Link](${url})`} />;
     await using screen = await render(markdown("https://example.com"));
     const { container, rerender } = screen;
-    expect([...container.querySelectorAll("img")].map((image) => image.src)).toEqual([
-      "https://www.google.com/s2/favicons?domain=example.com&sz=32",
-    ]);
+    expect(container.querySelectorAll("img")).toHaveLength(0);
+    expect(container.querySelector("a")?.href).toBe("https://example.com/");
     for (const url of ["http://192.168.1.10:8080", "http://localhost:3000", "http://home.arpa"]) {
       await rerender(markdown(url));
       expect(container.querySelectorAll("img")).toHaveLength(0);
     }
     await rerender(markdown("https://example.com"));
-    expect(container.querySelectorAll("img")).toHaveLength(1);
+    expect(container.querySelectorAll("img")).toHaveLength(0);
     await rerender(markdown("https://github.com/pingdotgg/t3code/pull/1"));
     expect(container.querySelectorAll("img")).toHaveLength(0);
     expect(container.querySelector("a svg")).not.toBeNull();

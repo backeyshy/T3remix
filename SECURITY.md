@@ -1,7 +1,6 @@
 # Security
 
-Report vulnerabilities to [security@t3.codes](mailto:security@t3.codes). The
-[security policy](.github/SECURITY.md) covers disclosure and safe harbor.
+For a problem affecting this fork, use its [private reporting guidance](.github/SECURITY.md).
 
 The rest of this file is for agents and maintainers auditing T3 Code or triaging
 reports. It defines who is trusted with what, which boundaries a real finding

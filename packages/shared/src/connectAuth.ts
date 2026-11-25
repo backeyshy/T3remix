@@ -1,3 +1,4 @@
+import { isUpstreamServiceHostname } from "./relayUrl.ts";
 import { readHashParams } from "./remote.ts";
 
 const CONNECT_AUTH_STATE_PARAM = "state";
@@ -7,7 +8,22 @@ const CONNECT_LOOPBACK_CALLBACK_PATH = "/callback";
 
 const CONNECT_AUTHORIZE_PATH = "/connect";
 
-export const DEFAULT_HOSTED_APP_URL = "https://app.t3.codes";
+export function currentHostedAppOrigin(): string | undefined {
+  const runtime: { location?: { origin: string }; process?: typeof process } = globalThis;
+  const value = runtime.location?.origin ?? runtime.process?.env.T3CODE_HOSTED_APP_URL;
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") &&
+      !isUpstreamServiceHostname(url.hostname)
+      ? url.origin
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export const DEFAULT_HOSTED_APP_URL = "http://localhost:3773";
 
 export const CONNECT_OAUTH_SCOPES = ["openid", "profile", "email", "offline_access"] as const;
 

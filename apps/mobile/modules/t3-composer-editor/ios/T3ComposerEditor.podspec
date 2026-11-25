@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
   s.summary        = 'Native attributed composer editor for T3 Code mobile.'
   s.description    = 'UIKit-backed rich text composer with atomic skill and file tokens.'
   s.author         = 'T3 Tools'
-  s.homepage       = 'https://t3tools.com'
+  s.homepage       = 'https://github.com/backeyshy/T3remix'
   s.platforms      = {
     :ios => '16.4',
   }

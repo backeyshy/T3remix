@@ -1,3 +1,4 @@
+import { isUpstreamServiceHostname } from "@t3tools/shared/relayUrl";
 import { readHostedPairingRequest } from "@t3tools/shared/remote";
 import * as Schema from "effect/Schema";
 import { msg } from "gt-react-native";
@@ -38,6 +39,7 @@ export function buildPairingUrl(host: string, code: string): string {
 
   try {
     const url = new URL(h.includes("://") ? h : `${isIpLiteral(h) ? "http" : "https"}://${h}`);
+    if (isUpstreamServiceHostname(url.hostname)) return "";
     // The code goes to the address shown, so a query cannot name another destination.
     url.search = "";
     url.hash = new URLSearchParams([["token", c]]).toString();
@@ -61,6 +63,8 @@ export function parsePairingUrl(url: string): { host: string; code: string } {
       };
     }
 
+    if (parsed.searchParams.has("host") || isUpstreamServiceHostname(parsed.hostname))
+      return { host: "", code: "" };
     const hashParams = new URLSearchParams(parsed.hash.slice(1));
     const hashToken = hashParams.get("token");
     const queryToken = parsed.searchParams.get("token");
@@ -83,7 +87,7 @@ export function extractPairingUrlFromQrPayload(payload: string): string {
 
   try {
     const url = new URL(trimmed);
-    if (url.protocol === "t3code:") {
+    if (/^t3remix(?:-dev|-preview)?:$/.test(url.protocol) || url.protocol === "t3code:") {
       const pairingUrl = url.searchParams.get(MOBILE_PAIRING_URL_PARAM)?.trim() ?? "";
       if (pairingUrl.length > 0) {
         return pairingUrl;

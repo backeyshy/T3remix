@@ -32,9 +32,13 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))(
         const second = yield* getOrCreateEnvironmentKeyPairFromSecretStore(secretStore);
 
         assert.deepEqual(second, first);
-        assert.isTrue(Option.isSome(yield* secretStore.get("cloud-link-ed25519-key-pair")));
-        assert.isTrue(Option.isNone(yield* secretStore.get("cloud-link-ed25519-private-key")));
-        assert.isTrue(Option.isNone(yield* secretStore.get("cloud-link-ed25519-public-key")));
+        assert.isTrue(Option.isSome(yield* secretStore.get("t3remix-cloud-link-ed25519-key-pair")));
+        assert.isTrue(
+          Option.isNone(yield* secretStore.get("t3remix-cloud-link-ed25519-private-key")),
+        );
+        assert.isTrue(
+          Option.isNone(yield* secretStore.get("t3remix-cloud-link-ed25519-public-key")),
+        );
       }).pipe(Effect.provide(layerServerSecretStore())),
     );
 
@@ -42,16 +46,19 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))(
       Effect.gen(function* () {
         const secretStore = yield* ServerSecretStore.ServerSecretStore;
         yield* secretStore.set(
-          "cloud-link-ed25519-private-key",
+          "t3remix-cloud-link-ed25519-private-key",
           new TextEncoder().encode("private"),
         );
-        yield* secretStore.set("cloud-link-ed25519-public-key", new TextEncoder().encode("public"));
+        yield* secretStore.set(
+          "t3remix-cloud-link-ed25519-public-key",
+          new TextEncoder().encode("public"),
+        );
 
         assert.deepEqual(yield* getOrCreateEnvironmentKeyPairFromSecretStore(secretStore), {
           privateKey: "private",
           publicKey: "public",
         });
-        assert.isTrue(Option.isSome(yield* secretStore.get("cloud-link-ed25519-key-pair")));
+        assert.isTrue(Option.isSome(yield* secretStore.get("t3remix-cloud-link-ed25519-key-pair")));
 
         // Unparseable key material must fail signing, not the layer every server starts.
         const signingKey = yield* EnvironmentSigningKey.pipe(Effect.provide(layer));
@@ -70,7 +77,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))(
         const secretStore = {
           get: (name) =>
             Effect.sync(() =>
-              name === "cloud-link-ed25519-key-pair" && createAttempted
+              name === "t3remix-cloud-link-ed25519-key-pair" && createAttempted
                 ? Option.some(winner)
                 : Option.none(),
             ),
@@ -87,7 +94,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))(
                       _tag: "AlreadyExists",
                       module: "FileSystem",
                       method: "open",
-                      pathOrDescriptor: "cloud-link-ed25519-key-pair.bin",
+                      pathOrDescriptor: "t3remix-cloud-link-ed25519-key-pair.bin",
                     }),
                   }),
                 ),

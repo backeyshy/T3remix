@@ -90,7 +90,6 @@ function layerCloudClient() {
       MobileStorage.MobileStorage,
       MobileStorage.MobileStorage.of({
         loadOrCreateAgentAwarenessDeviceId: Effect.succeed("device-1"),
-        loadOrCreateAnalyticsDeviceId: Effect.succeed("analytics-device-1"),
         loadAgentAwarenessDeviceId: Effect.succeed("device-1"),
         loadAgentAwarenessRegistrationRecord: Effect.succeed(null),
         saveAgentAwarenessRegistrationRecord: () => Effect.void,
@@ -252,7 +251,7 @@ describe("mobile cloud link environment client", () => {
           _tag: "CloudEnvironmentLinkError",
           message: "Relay returned credentials for a different environment.",
         });
-        expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(fetchMock).toHaveBeenCalledTimes(3);
       }),
   );
 
@@ -285,7 +284,7 @@ describe("mobile cloud link environment client", () => {
         _tag: "CloudEnvironmentLinkError",
         message: "Relay returned credentials for a different endpoint provider.",
       });
-      expect(fetchMock).toHaveBeenCalledTimes(4);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     }),
   );
 
@@ -316,8 +315,10 @@ describe("mobile cloud link environment client", () => {
 
       yield* linkPreparedEnvironment(false);
 
-      expect(bodies[0]).toEqual({ publishAgentActivity: true });
-      expect(bodies[2]).toMatchObject({
+      expect(
+        fetchMock.mock.calls.some(([url]) => String(url).endsWith("/api/connect/preferences")),
+      ).toBe(false);
+      expect(bodies[1]).toMatchObject({
         endpoint: {
           httpBaseUrl: "https://desktop.example.test/",
           wsBaseUrl: "wss://desktop.example.test/ws",
@@ -328,13 +329,13 @@ describe("mobile cloud link environment client", () => {
           localHttpPort: 443,
         },
       });
-      expect(bodies[3]).toMatchObject({
+      expect(bodies[2]).toMatchObject({
         deviceId: "device-1",
         notificationsEnabled: true,
         liveActivitiesEnabled: false,
         managedTunnelsEnabled: false,
       });
-      expect(bodies[4]).toMatchObject({
+      expect(bodies[3]).toMatchObject({
         cloudUserId: "user_123",
         environmentCredential: "environment-credential",
       });

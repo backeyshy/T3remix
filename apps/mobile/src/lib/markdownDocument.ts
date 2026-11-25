@@ -462,7 +462,7 @@ interface DestinationToken {
 }
 
 /**
- * Markdown reads `C:\work\.t3` as `C:\work.t3`. Web keeps authored Windows destinations
+ * Markdown reads `C:\work\.t3remix` as `C:\work.t3remix`. Web keeps authored Windows destinations
  * literally (see `remarkKeepWindowsPaths` in shared), so escape their backslashes to give
  * both parsers here the same path. `\&` stays an escape, as `markdownWithHtml` emits it.
  * Expects authored Markdown: already escaped output would be escaped twice.
@@ -552,7 +552,13 @@ function normalizedMarkdown(markdown: string): string {
 }
 
 export function markdownForNativeParsing(markdown: string): string {
-  return markdownWithImageParagraphs(normalizedMarkdown(markdown));
+  const content = normalizedMarkdown(markdown);
+  const safeContent = /https?:|\/\//i.test(content)
+    ? markdownWithFileEmbeds(content, (href, _standalone, alt) =>
+        /^(?:https?:|\/\/)/i.test(href) ? alt || href : null,
+      ).markdown
+    : content;
+  return markdownWithImageParagraphs(safeContent);
 }
 
 export function parseMarkdownDocument(markdown: string): Root {
@@ -566,7 +572,7 @@ export function markdownForNativeRendering(markdown: string, fileLink: RegExp): 
 /** Native media slots only cover standalone images; nested file embeds must become links. */
 export function markdownWithFileEmbeds(
   markdown: string,
-  label: (href: string, standalone: boolean) => string | null,
+  label: (href: string, standalone: boolean, alt: string | null | undefined) => string | null,
 ): { markdown: string; fileHrefs: ReadonlySet<string> } {
   const fileHrefs = new Set<string>();
   if (!markdown.includes("![")) return { markdown, fileHrefs };
@@ -586,12 +592,14 @@ export function markdownWithFileEmbeds(
     if (node.type === "image" || node.type === "imageReference") {
       const href =
         node.type === "image" ? node.url : definitions.get(node.identifier.toUpperCase());
-      const name = href === undefined ? null : label(href, standalone);
+      const name = href === undefined ? null : label(href, standalone, node.alt);
       const start = node.position?.start.offset;
       const end = node.position?.end.offset;
       if (href !== undefined && name !== null && start !== undefined && end !== undefined) {
         const text = name.replace(/[\\[\]`*_~|&<>]/g, "\\$&");
         const url = href.replace(/[\\&]/g, "\\$&").replace(/</g, "%3C").replace(/>/g, "%3E");
+        if (!insideLink && bangBefore(markdown, start))
+          edits.push({ start: start - 1, end: start, content: "\\!" });
         edits.push({ start, end, content: insideLink ? text : `[${text}](<${url}>)` });
         fileHrefs.add(href);
       }

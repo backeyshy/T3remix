@@ -135,7 +135,14 @@ export const hashBundle = Effect.fn("hashBundle")(function* (root: string) {
 });
 type FileSystemError = import("effect/PlatformError").PlatformError;
 
-const bundleId = "com.t3tools.t3code.dev";
+const appIdentifier = (platform: NativePlatform) =>
+  HostProcess.Environment.pipe(
+    Effect.map(
+      (env) =>
+        (platform === "ios" ? env.T3CODE_IOS_BUNDLE_ID : env.T3CODE_ANDROID_PACKAGE)?.trim() ||
+        "io.github.backeyshy.t3remix.dev",
+    ),
+  );
 const roots = Effect.gen(function* () {
   const path = yield* Path.Path;
   const repo = yield* path.fromFileUrl(new URL("../", import.meta.url));
@@ -370,6 +377,7 @@ export const installedBinary = Effect.fn("installedBinary")(function* (
   device: string,
   run: typeof command = command,
 ) {
+  const bundleId = yield* appIdentifier(platform);
   if (platform === "ios") {
     const apps = yield* run("xcrun", ["simctl", "listapps", device]);
     if (!apps.includes(`"${bundleId}"`)) return null;
@@ -431,7 +439,7 @@ export const prebuildAndroid = Effect.fn("nativeClient.prebuildAndroid")(functio
   );
 });
 
-const artifactNames = { ios: "T3CodeDev.app", android: "app-debug.apk" } as const;
+const artifactNames = { ios: "RemixWorkbenchDev.app", android: "app-debug.apk" } as const;
 // R2 requires equal-sized parts and Workers cap request bodies at 100 MB.
 const partSize = 64 * 1024 * 1024;
 const RemoteCredentials = Schema.fromJsonString(
@@ -465,14 +473,14 @@ interface RemoteCache {
 const remoteCache = Effect.fn("nativeClient.remoteCache")(
   function* (home: string) {
     const environment = yield* HostProcess.Environment;
-    if (environment.T3_NATIVE_CLIENT_CACHE === "off") return null;
+    if (!["read", "write"].includes(environment.T3_NATIVE_CLIENT_CACHE ?? "")) return null;
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const { endpoint } = yield* decodeEndpoint(
       yield* fs.readFileString(path.join((yield* roots).repo, ".task-cache.json")),
     );
     const credentials = yield* decodeCredentials(
-      yield* fs.readFileString(path.join(home, ".config/t3-task-cache/credentials.json")),
+      yield* fs.readFileString(path.join(home, ".config/t3remix-task-cache/credentials.json")),
     );
     const login = credentials[endpoint];
     if (!login) return null;
@@ -504,7 +512,7 @@ const sharedSource = Effect.fn("nativeClient.sharedSource")(
       remote.name === "ci-reader"
         ? remote
         : yield* fs
-            .readFileString(path.join(home, ".config/t3-task-cache/ci-reader.json"))
+            .readFileString(path.join(home, ".config/t3remix-task-cache/ci-reader.json"))
             .pipe(Effect.flatMap(Schema.decodeUnknownEffect(ReaderLogin)));
     const basic = Buffer.from(`${reader.name}:${reader.token}`).toString("base64");
     return { url: `${remote.url}/${key}`, header: `authorization:Basic ${basic}` };
@@ -669,6 +677,10 @@ const hasXcode = Effect.gen(function* () {
 const buildIosOnEas = Effect.fn("nativeClient.buildIosOnEas")(function* (staging: string) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
+  if (!(yield* HostProcess.Environment).T3CODE_EAS_PROJECT_ID?.trim())
+    return yield* new NativeClientError({
+      message: "Install Xcode for local iOS builds, or configure your own T3CODE_EAS_PROJECT_ID.",
+    });
   // Fail before any work when neither builder is available.
   yield* command("npx", ["-y", easCli, "whoami"]).pipe(
     Effect.mapError(
@@ -743,9 +755,9 @@ const build = Effect.fn("nativeClient.build")(function* (
         [
           "xcodebuild",
           "-workspace",
-          path.join(mobile, "ios/T3CodeDev.xcworkspace"),
+          path.join(mobile, "ios/RemixWorkbenchDev.xcworkspace"),
           "-scheme",
-          "T3CodeDev",
+          "RemixWorkbenchDev",
           "-configuration",
           "Debug",
           "-destination",
@@ -873,10 +885,10 @@ const buildOnBlacksmith = Effect.fn("nativeClient.buildOnBlacksmith")(
   ) {
     const environment = yield* HostProcess.Environment;
     // The workflow itself runs this script: it must build, never dispatch.
-    if (environment.GITHUB_ACTIONS === "true" || environment.T3_NATIVE_CLIENT_BUILD === "local")
+    if (environment.GITHUB_ACTIONS === "true" || environment.T3_NATIVE_CLIENT_BUILD !== "remote")
       return false;
     if (!(yield* isCommandAvailable("gh"))) return false;
-    const repository = environment.T3_NATIVE_CLIENT_REPOSITORY ?? "pingdotgg/t3code";
+    const repository = environment.T3_NATIVE_CLIENT_REPOSITORY ?? "backeyshy/T3remix";
     const { repo } = yield* roots;
     const sha = yield* command("git", ["rev-parse", "HEAD"], false, repo);
     const pushed = yield* command(
@@ -984,7 +996,7 @@ export const resolveArtifact = Effect.fn("nativeClient.resolveArtifact")(functio
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const key = `${platform}/${abi ? `development-${abi}` : "development"}/${fingerprint}`;
-  const directory = path.join(home, ".cache/t3code/native-clients/artifacts", key);
+  const directory = path.join(home, ".cache/t3remix/native-clients/artifacts", key);
   const artifact = { directory, file: path.join(directory, artifactNames[platform]) };
   if (yield* fs.exists(artifact.file)) {
     yield* Console.error(`Using cached client ${key}.`);
@@ -1055,6 +1067,7 @@ const install = Effect.fn("nativeClient.install")(function* (
     yield* command("xcrun", ["simctl", "install", device, file], true);
     return;
   }
+  const bundleId = yield* appIdentifier(platform);
   yield* command("adb", ["-s", device, "install", "-r", "-d", file]).pipe(
     Effect.catchTags({
       NativeClientError: (error) =>
@@ -1127,6 +1140,7 @@ const installIntoSession = Effect.fn("nativeClient.installIntoSession")(function
   metro: string | undefined,
   config: string | undefined,
 ) {
+  const bundleId = yield* appIdentifier(platform);
   const started = yield* Clock.currentTimeMillis;
   const path = yield* Path.Path;
   const node = yield* HostProcess.ExecutablePath;
@@ -1193,7 +1207,7 @@ const installIntoSession = Effect.fn("nativeClient.installIntoSession")(function
         agentDevice,
         "open",
         bundleId,
-        `t3code-dev://expo-development-client/?url=${url}&disableOnboarding=1&disableFab=1&disableAutoLaunch=1`,
+        `t3remix-dev://expo-development-client/?url=${url}&disableOnboarding=1&disableFab=1&disableAutoLaunch=1`,
         ...target,
       ],
       true,
@@ -1330,7 +1344,7 @@ const main = Command.make(
       return yield* new NativeClientError({
         message: "HOME or USERPROFILE must be set to store native client records.",
       });
-    const cache = path.join(home, ".cache/t3code/native-clients");
+    const cache = path.join(home, ".cache/t3remix/native-clients");
     const recordPath = path.join(cache, platform, `${yield* digest(device)}.json`);
     // An iOS simulator build is arm64 for every device; an APK carries only the device's own ABI.
     const abi = Effect.gen(function* () {

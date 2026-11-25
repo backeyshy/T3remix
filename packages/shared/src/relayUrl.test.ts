@@ -13,6 +13,10 @@ describe("normalizeSecureRelayUrl", () => {
   });
 
   it.each([
+    "https://Relay.T3.codes./",
+    "https://t3.chat",
+    "https://cache.pinglabs.workers.dev.",
+    "https://identity.t3.tools",
     "http://relay.example.test",
     "https://user:password@relay.example.test",
     "https://relay.example.test/path",

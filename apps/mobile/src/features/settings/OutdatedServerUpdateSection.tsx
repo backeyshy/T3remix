@@ -1,3 +1,4 @@
+import { releaseFeedUrl } from "./environment-maintenance";
 import { useGT, useMessages } from "gt-react-native";
 import { useAtom, useAtomValue } from "@effect/atom-react";
 import { serverUpdateFailureText } from "@t3tools/client-runtime/state/server";
@@ -60,7 +61,7 @@ export function OutdatedServerUpdateSection({
       gt("Update {environment}?", { environment: label }),
       gt(
         "Install {product} {version}. {product} restarts on that machine and reconnects. Running threads may be interrupted.",
-        { product: "T3 Code", version: targetVersion },
+        { product: "Remix Workbench", version: targetVersion },
       ),
       [
         { text: gt("Cancel"), style: "cancel" },
@@ -80,7 +81,7 @@ export function OutdatedServerUpdateSection({
   }
 
   return (
-    <SettingsSection title="T3 Code">
+    <SettingsSection title="Remix Workbench">
       <View className="gap-1 p-4">
         <Text className="text-base text-foreground">
           {release
@@ -99,7 +100,7 @@ export function OutdatedServerUpdateSection({
                 ? gt("Version {version} is available.", { version: release.targetVersion })
                 : gt("No newer version is available yet.")
               : gt("This app needs a newer version of {product} on this machine.", {
-                  product: "T3 Code",
+                  product: "Remix Workbench",
                 })}
         </Text>
         {error || state.status === "failed" ? (
@@ -108,13 +109,15 @@ export function OutdatedServerUpdateSection({
           </Text>
         ) : null}
       </View>
-      <SettingsActionRow
-        icon="arrow.clockwise"
-        label={gt("Check for updates")}
-        disabled={busy}
-        loading={checking}
-        onPress={check}
-      />
+      {releaseFeedUrl() ? (
+        <SettingsActionRow
+          icon="arrow.clockwise"
+          label={gt("Check for updates")}
+          disabled={busy}
+          loading={checking}
+          onPress={check}
+        />
+      ) : null}
       {release?.targetVersion ? (
         <SettingsActionRow
           icon="arrow.up.circle"

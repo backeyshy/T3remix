@@ -1,137 +1,18 @@
-# Product usage data
+# 工作台会连接哪里
 
-The T3 Code server sends product usage events to T3 Code's own endpoint at `ingest.t3.codes`,
-associated with a hashed random identifier for the installation. To count how many installations one person
-uses, the server also sends a hashed identifier for your T3 Connect account when you are signed in
-to one, and a random identifier for each device that connects. The endpoint keeps a copy of each
-event and forwards events to PostHog. Events include the provider, model, reasoning effort,
-permission mode, turn and request results, duration, release channel, and token counts when
-available. Child-agent token counts are reported separately from the main agent's. Models from a
-provider's catalog are reported by name, even when a custom endpoint serves them. Any other
-model, such as a local or fine-tuned one, is reported only as a custom model of that provider.
+直接配对时，浏览器或原生客户端向你选定的主机发出身份验证请求，随后建立 WebSocket。会话、项目路径、终端和附件会在这些设备间传递。本机服务可用回环地址，手机访问需要它能到达的局域网或自有 HTTPS 地址。
 
-Product events do not include prompts, responses, file contents, authentication tokens, conversation IDs,
-raw provider events, child-agent output, or identifiers from your provider accounts. The one exception is [agent feedback](#agent-feedback),
-which is off unless you turn it on.
+## 默认行为
 
-## Agent feedback
+- 产品使用事件和反馈上传入口会丢弃事件。工作台不会为它们创建安装标识、启动上传队列或向上游回传设备和账号关联。
+- 手机移除了 Expo Observe 和上游 OTA 更新。网页、桌面和手机的连接追踪不会发送到上游诊断服务。配对不会自动启用活动推送。
+- 官方中继、托管网页和认证租户没有默认配置。已知官方服务地址会被连接配置拒绝。默认使用独立应用标识、配对协议和状态目录。
+- 手机网页使用设备自己的浏览器。原生应用须从本仓库构建。更新源、SSH 主机上的可执行程序及模型清单使用本分支支持的自有来源。默认关闭供应商更新检查，可在设置中主动开启。
 
-Agent feedback lets agents tell the T3 team about T3 Code: a T3 tool or `t3` command that did not
-do what they expected, a confusing instruction, or a missing capability. Choose a mode in
-**Agent feedback** in **Settings > Labs**:
+## 自己选择的服务
 
-- **Off**, the default: agents do not see the feedback tools, and `t3 feedback` stops with a
-  message pointing to Labs.
-- **When I ask**: agents send a report only when you ask them to, about anything in T3 Code.
-- **Automatic**: agents also report T3 Code problems they hit on their own, such as a T3 tool that
-  failed and made them find another way. These go out without asking you, so they carry only the
-  kind of problem and the tool or command it concerns, with no agent-written text, outline, or
-  conversation. `t3 feedback --kind bug --subject "t3 thread send" --expected "…" --actual "…"`
-  sends one the same way, so it works only in this mode.
+云端 AI 由你选定的代理和模型供应商处理请求。Git 远端、第三方登录、隧道、浏览器内打开的站点以及终端运行的程序也按各自配置联网。直接配对可以独立使用。自建账号和中继模式需另行配置自己的身份租户、域名及相应基础设施。
 
-When you ask your agent for a report, in either mode, T3 Code shows it in the thread as a card
-with exactly what would leave your machine, and sends it only if you press **Send**. The agent
-carries on without waiting and never learns your answer. The card stays open until you answer it,
-even after the turn ends or the server restarts; **Don't send** sends nothing, and the agent is
-told not to send it another way. Only someone who can run agents on that machine can answer the
-card; people on a guest link cannot.
+本地保存会话、终端历史、调试日志和凭据。可选的 OpenTelemetry 导出会把对应信号传给你指定的接收端，配置在“设置 → 维护 → 诊断”中。使用 Apple 或 Google 推送时，相应平台参与投递，已启用的活动通知可能包含项目和会话标题。请根据数据用途选择这些功能。
 
-Each report has the kind of problem, the T3 tool or command it concerns (or `general`), and, when
-you send it from a card, up to 300 characters each of expected behavior, actual behavior, and
-workaround, written by the agent, which is told not to quote your messages or code. The agent also says how many recent turns the
-problem spans. A report you approved carries an outline of those turns, and of at least the last 5,
-from when the agent asked: who spoke, how long each message was, and which tools ran, whether they
-worked, and how long they took. The outline has no text. Tools from your other MCP servers appear
-only as `mcp`. Turn on **Include the conversation** in the card to attach the text of your
-messages and the agent's replies in the turns the problem spans, up to 1,000 characters per
-message and 16 KB in all, oldest text dropped first; the card shows that text before you send it.
-To change a report, such as the turns it covers, ask the agent in the chat: it shows a new card,
-and you can decline the old one. Tool inputs and outputs, files, and attachments are never sent. An agent can
-show you at most 3 report cards and send 3 reports on its own per turn, and `t3 feedback` can
-send at most 10 an hour.
-
-Before anything is saved, T3 Code removes file paths (when text mentions one, the rest of that line
-goes with it), your user name, machine name, project title, branch, and git remote, and anything
-that looks like a key, token, email address, or URL with a password. It cannot recognise your code
-or a name written in a sentence, so only include the conversation when it holds nothing you would
-not send. Reports from agents also name the provider and the model. No thread IDs or project IDs
-are sent, and each report goes out under its own random ID, so reports cannot be tied to your
-installation or to each other.
-
-Reports are saved on your machine first, and a declined one is not saved at all; its card keeps
-only what you would have sent without the conversation. When product usage
-data is turned off, saved reports stay there and are not sent. `t3 feedback list` shows recent
-reports, the thread each came from, and a line for each outline; `t3 feedback list --json` shows
-exactly what each one holds.
-
-## Relay connection diagnostics
-
-T3 Code sends relay connection traces to Axiom to diagnose T3 Connect connectivity. These are
-separate from product events. Traces carry connection timings, request paths, environment and
-thread identifiers, and error types. They omit machine addresses, query strings, log lines,
-error messages, and stack frames.
-
-To disable product events and relay tracing from the server, set
-`T3CODE_TELEMETRY_ENABLED=false` or `DO_NOT_TRACK=1` in its environment before starting it.
-`DO_NOT_TRACK=1` wins over `T3CODE_TELEMETRY_ENABLED=true`. Relay tracing also stops
-when `T3CODE_OTEL_SDK_DISABLED` or `OTEL_SDK_DISABLED` turns OpenTelemetry export off.
-
-On a CI runner, the server sends no product events or relay traces by default. It treats a run as
-CI when a common CI variable is set, such as `CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, or `JENKINS_URL`.
-`CI=false` and `CI=0` do not count. To send them from CI anyway, set
-`T3CODE_TELEMETRY_ENABLED=true`.
-
-An administrator can turn product events and relay tracing off in the server and desktop app with
-a [managed policy](./managed-policy.md#other-capabilities). This does not control traces sent by
-the hosted web app or mobile clients.
-
-The desktop app reads `T3CODE_TELEMETRY_ENABLED` and `DO_NOT_TRACK` from your shell profile (for example `~/.zshrc`) on macOS and
-Linux, so export them there and restart the app. On Windows, set them as user environment variables.
-
-A browser opened from a T3 Code server sends relay traces only while connected and allowed by that
-server's policy. The hosted web app sends relay traces when configured and has no tracing toggle.
-
-## Mobile app diagnostics
-
-When the iOS or Android app crashes or hits an error, it sends a report to T3 Code: the error
-message, the stack trace, the app version, and the device model and OS version. Each launch also
-sends startup timings, and every report carries a random ID for the install. Reports go through
-the T3 Connect relay to Axiom. They do not include your threads, prompts, or connection details,
-but an error message can quote a value the app was handling.
-
-To stop sending them, turn off **Send crash reports** in **Settings > About T3 Code > Diagnostics**.
-
-The mobile app also sends relay connection traces when its build has tracing configured. These
-carry an identifier for the current app session. To stop them, turn off **Send connection traces**
-in **Settings > About T3 Code > Diagnostics**, or on the T3 Connect setup sheet shown after you
-sign in. This is separate from crash reports. Server environment variables and managed policy do
-not disable mobile tracing.
-
-## Agent activity for mobile notifications
-
-When **Publish agent activity** is enabled on a host, it sends project and thread titles, model
-names, activity status, and environment and thread identifiers to the T3 Connect relay for
-[mobile notifications and live activities](./mobile-notifications.md). This is separate from
-product events and relay diagnostics. The telemetry opt-out does not disable it.
-
-To stop publishing, turn off **Publish agent activity** under **Settings > Sharing & access** on
-the host. Turning off notifications on a phone controls that phone's alerts, not the host's
-publishing setting.
-
-## Export diagnostics to your own receiver
-
-To send traces, metrics, or logs to an OpenTelemetry receiver, open
-**Settings > Maintenance > Diagnostics**, select an environment, and enter each signal's OTLP HTTP
-endpoint under **OpenTelemetry export** (for example `http://localhost:4318/v1/traces`). Save, then
-restart that environment's server. The receiver must be reachable from the server's machine.
-**Test** sends an empty export from the server to check an endpoint before or after you save it;
-saved endpoints are checked when the section opens. Checks send authentication headers only to
-the signal's currently running endpoint and do not follow redirects. To check a new endpoint
-that requires authentication, save it and restart the server first.
-
-`T3CODE_OTLP_*_URL` and standard `OTEL_EXPORTER_OTLP_*` environment variables override the saved
-settings. An overridden signal shows **Set by environment** and names the variable that set it, and its
-**Test** checks the running endpoint instead of the field. For endpoints saved here or set with `T3CODE_OTLP_*_URL`, set `T3CODE_OTLP_HEADERS` for
-receivers that need authentication and `T3CODE_OTLP_PROTOCOL=http/protobuf` for receivers that do
-not accept JSON. An endpoint set with `OTEL_EXPORTER_OTLP_*` takes its headers and protocol from
-`OTEL_EXPORTER_OTLP_HEADERS` and `OTEL_EXPORTER_OTLP_PROTOCOL` instead.
+[自有服务配置样例](../../.env.example) · [安装与手机构建](./install.md)

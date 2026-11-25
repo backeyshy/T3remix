@@ -122,6 +122,8 @@ export function replacedVersionedAppImagePath(input: {
   const currentName = input.appImagePath.slice(input.appImagePath.lastIndexOf("/") + 1);
   return previous.startsWith("/") &&
     previous.slice(0, -previousName.length) === input.appImagePath.slice(0, -currentName.length) &&
+    previousName.startsWith("Remix-Workbench-") &&
+    currentName.startsWith("Remix-Workbench-") &&
     APPIMAGE_NAME_VERSION.test(previousName) &&
     !APPIMAGE_NAME_VERSION.test(currentName)
     ? previous

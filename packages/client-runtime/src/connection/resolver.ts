@@ -1,3 +1,4 @@
+import { isUpstreamServiceHostname, isUpstreamServiceUrl } from "@t3tools/shared/relayUrl";
 import { msg } from "gt-i18n";
 import { translatableDetail } from "../errors/translatable.ts";
 import type {
@@ -12,11 +13,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as HttpClient from "effect/http/HttpClient";
 
-import {
-  appendClientConnectionParams,
-  type ClientOwnerParams,
-  readClientOwnerParams,
-} from "../authorization/remote.ts";
+import { appendClientConnectionParams } from "../authorization/remote.ts";
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
 import * as ClientCapabilities from "../platform/capabilities.ts";
 import {
@@ -80,13 +77,12 @@ const isBearerCredential = Schema.is(BearerConnectionCredential);
 function primarySocketUrl(
   target: PrimaryConnectionTarget,
   clientMetadata: AuthClientPresentationMetadata | undefined,
-  owners: ClientOwnerParams,
 ): string {
   const url = new URL(target.wsBaseUrl);
   if (url.pathname === "" || url.pathname === "/") {
     url.pathname = "/ws";
   }
-  appendClientConnectionParams(url, clientMetadata, "direct", owners);
+  appendClientConnectionParams(url, clientMetadata, "direct");
   return url.toString();
 }
 
@@ -104,7 +100,7 @@ const makePrimaryBroker = Effect.fn("clientRuntime.connection.broker.makePrimary
         environmentId: target.environmentId,
         label: target.label,
         httpBaseUrl: target.httpBaseUrl,
-        socketUrl: primarySocketUrl(target, presentation.metadata, yield* readClientOwnerParams),
+        socketUrl: primarySocketUrl(target, presentation.metadata),
         httpAuthorization: null,
         target,
       } satisfies PreparedConnection;
@@ -290,6 +286,20 @@ export const make = Effect.gen(function* () {
     entry: ConnectionCatalogEntry,
   ) {
     const target: ConnectionTarget = entry.target;
+    const endpoint =
+      target._tag === "PrimaryConnectionTarget" ? target : Option.getOrUndefined(entry.profile);
+    if (
+      endpoint &&
+      ("httpBaseUrl" in endpoint
+        ? isUpstreamServiceUrl(endpoint.httpBaseUrl) || isUpstreamServiceUrl(endpoint.wsBaseUrl)
+        : isUpstreamServiceHostname(endpoint.target.hostname) ||
+          isUpstreamServiceHostname(endpoint.target.alias))
+    ) {
+      return yield* new ConnectionBlockedError({
+        reason: "configuration",
+        detail: "This upstream service is disabled.",
+      });
+    }
     yield* Effect.annotateCurrentSpan({
       "connection.environment.id": target.environmentId,
       "connection.target.kind": target._tag,

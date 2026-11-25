@@ -1649,7 +1649,9 @@ const CHAT_MARKDOWN_COMPONENTS = {
       fileLinkChip,
       resolvedTheme,
     } = use(ChatMarkdownRendererContext);
-    const imageExpand = use(MarkdownLinkContext) ? undefined : expandMedia;
+    const insideLink = use(MarkdownLinkContext);
+    const imageExpand = insideLink ? undefined : expandMedia;
+    const [openedUrl, setOpenedUrl] = useState<string | null>(null);
     const contextReference = typeof src === "string" ? parseComposerContextHref(src) : null;
     if (contextReference) {
       const label = alt || contextReference.contextId;
@@ -1669,6 +1671,24 @@ const CHAT_MARKDOWN_COMPONENTS = {
     const { className, style: _style, width, height, ...imageProps } = props;
     const authoredSizeStyle = authoredImageSizeStyle(width, height);
     const imageSource = classifyMarkdownImageSource(classifiedSrc, imageBaseDir ?? cwd);
+    if (
+      imageSource._tag === "Direct" &&
+      /^(?:https?:|\/\/)/i.test(imageSource.uri) &&
+      openedUrl !== imageSource.uri
+    ) {
+      const url = resolveProtocolRelativeMediaUrl(imageSource.uri);
+      const label = altText || url;
+      if (insideLink) return <span>{label}</span>;
+      return sourceControlMedia ? (
+        <button type="button" className="underline" onClick={() => setOpenedUrl(imageSource.uri)}>
+          {label}
+        </button>
+      ) : (
+        <a href={url} target="_blank" rel="noreferrer noopener">
+          {label}
+        </a>
+      );
+    }
     const mediaKind = mediaKindFromPath(classifiedSrc);
     if (mediaKind === "audio") {
       const filePath = imageSource._tag === "WorkspaceFile" ? imageSource.path : null;

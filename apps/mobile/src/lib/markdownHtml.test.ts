@@ -336,6 +336,18 @@ describe("file embeds in native thread and file Markdown", () => {
     );
   });
 
+  it("converts tracking images and embedded remote media to links before native rendering", () => {
+    expect(markdownForNativeParsing("![receipt](https://t3.codes/pixel.png)")).toBe(
+      "[receipt](<https://t3.codes/pixel.png>)",
+    );
+    expect(markdownForNativeParsing('<img src="//media.example/image.png" alt="shot">')).toBe(
+      "[shot](<//media.example/image.png>)",
+    );
+    expect(markdownForNativeParsing("![clip][v]\n\n[v]: https://media.example/clip.mp4")).toContain(
+      "[clip](<https://media.example/clip.mp4>)",
+    );
+  });
+
   it("retains standalone audio players and image/video embeds in threads", () => {
     const source =
       "![sound](./sound.mp3)\n\n![image](./image.png)\n\n![clip](./clip.mp4)\n\ninline ![photo](./photo.png)";
@@ -402,7 +414,7 @@ describe("file embeds in native thread and file Markdown", () => {
 });
 
 describe("Windows paths in native Markdown", () => {
-  // regression: #23722 Markdown escapes ate the separator before `.t3` and `_build`
+  // regression: #23722 Markdown escapes ate the separator before `.t3remix` and `_build`
   it("keeps backslashes in Windows image and link destinations", async () => {
     const image = String.raw`C:\work\.t3\_build\shot.png`;
     const link = String.raw`\\server\share\.t3\notes.md`;

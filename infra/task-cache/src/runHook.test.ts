@@ -1,6 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off - exercises the real native runner and local HTTP collector.
-import * as NodeChildProcess from "node:child_process";
 import * as NodeDiagnosticsChannel from "node:diagnostics_channel";
+import * as NodeChildProcess from "node:child_process";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeHttp from "node:http";
 import * as NodeOS from "node:os";
@@ -8,70 +8,24 @@ import * as NodePath from "node:path";
 import { expect, it, vi } from "vite-plus/test";
 import startRunHook from "./runHook.ts";
 
-it("sends telemetry from a detached flusher that the task runner does not wait for", async () => {
-  const root = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "task-cache-flusher-"));
-  const reports: string[] = [];
-  let finishReturned!: () => void;
-  const returned = new Promise<void>((resolve) => {
-    finishReturned = resolve;
-  });
-  let disconnected = false;
-  const server = NodeHttp.createServer(async (request, response) => {
-    let body = "";
-    for await (const chunk of request) body += chunk;
-    reports.push(body);
-    await returned;
-    disconnected = response.destroyed;
-    response.writeHead(204).end();
-  });
-  // The hook detaches and unrefs its flusher, so only this channel lets cleanup wait for it.
-  const flushers: Promise<void>[] = [];
-  const onSpawn = (message: unknown) => {
-    const { process: flusher } = message as { process: NodeChildProcess.ChildProcess };
-    flushers.push(new Promise((resolve) => flusher.once("close", () => resolve())));
-  };
-  NodeDiagnosticsChannel.subscribe("child_process", onSpawn);
+it("enables only owner cache transport without starting a telemetry flusher", () => {
   try {
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    const address = server.address();
-    if (!address || typeof address === "string") throw new Error("Missing HTTP address");
-    const endpoint = `http://127.0.0.1:${address.port}/projects/test`;
-    await NodeFSP.writeFile(NodePath.join(root, ".task-cache.json"), JSON.stringify({ endpoint }));
-    await NodeFSP.mkdir(NodePath.join(root, ".config/t3-task-cache"), { recursive: true });
-    await NodeFSP.writeFile(
-      NodePath.join(root, ".config/t3-task-cache/credentials.json"),
-      JSON.stringify({ [endpoint]: { name: "maria", token: "secret" } }),
-    );
-    vi.stubEnv("HOME", root);
-    vi.stubEnv("GITHUB_ACTIONS", undefined);
-    vi.stubEnv("T3_TASK_CACHE_TELEMETRY", undefined);
-    vi.stubEnv("VITE_CACHE_PATH", undefined);
-    const finish = startRunHook({ root });
-    const summary = NodePath.join(root, "node_modules/.vite/task-cache/run/last-summary.json");
-    await NodeFSP.mkdir(NodePath.dirname(summary), { recursive: true });
-    await NodeFSP.writeFile(
-      summary,
-      JSON.stringify({
-        tasks: [{ package_name: "fixture", task_name: "build", result: { Spawned: {} } }],
-      }),
-    );
-    await finish?.();
-    finishReturned();
-    await Promise.all(flushers);
-    expect(flushers).toHaveLength(1);
-    expect(reports.map((report) => JSON.parse(report).tasks)).toEqual([
-      [{ package: "fixture", task: "build", source: "executed", savedMs: 0 }],
-    ]);
-    expect(disconnected).toBe(false);
+    vi.stubEnv("VP_REMOTE_CACHE", "read-write");
+    vi.stubEnv("VP_REMOTE_CACHE_URL", "https://token@cache.example/projects/test");
+    const spawned: unknown[] = [];
+    const onSpawn = (value: unknown) => spawned.push(value);
+    NodeDiagnosticsChannel.subscribe("child_process", onSpawn);
+    try {
+      const finish = startRunHook({ root: import.meta.dirname });
+      expect(finish?.remoteCache).toBe("read-write");
+      finish?.();
+      expect(spawned).toHaveLength(0);
+    } finally {
+      NodeDiagnosticsChannel.unsubscribe("child_process", onSpawn);
+    }
   } finally {
-    finishReturned();
-    await Promise.all(flushers);
-    NodeDiagnosticsChannel.unsubscribe("child_process", onSpawn);
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
-    await new Promise<void>((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    );
-    await NodeFSP.rm(root, { recursive: true, force: true });
   }
 });
 
@@ -185,9 +139,9 @@ it("installs without masking .profile and configures CI through bash", async () 
     const address = server.address();
     if (!address || typeof address === "string") throw new Error("Missing HTTP address");
     await NodeFSP.writeFile(NodePath.join(home, ".profile"), "export EXISTING_PROFILE=preserved\n");
-    await NodeFSP.mkdir(NodePath.join(home, ".config/t3-task-cache"), { recursive: true });
+    await NodeFSP.mkdir(NodePath.join(home, ".config/t3remix-task-cache"), { recursive: true });
     await NodeFSP.writeFile(
-      NodePath.join(home, ".config/t3-task-cache/credentials.json"),
+      NodePath.join(home, ".config/t3remix-task-cache/credentials.json"),
       "{partial",
     );
     await run(
@@ -209,7 +163,8 @@ it("installs without masking .profile and configures CI through bash", async () 
     const githubEnv = NodePath.join(home, "github-env");
     await run([process.execPath, NodePath.join(import.meta.dirname, "../scripts/install-ci.ts")], {
       T3_TASK_CACHE_READ_TOKEN: "read-only-fixture-token-01234567890123456789",
-      GITHUB_REPOSITORY: "pingdotgg/t3code",
+      GITHUB_REPOSITORY: "backeyshy/T3remix",
+      T3_CACHE_SETUP_URL: `http://127.0.0.1:${address.port}/projects/test`,
       GITHUB_ACTIONS: "true",
       GITHUB_ENV: githubEnv,
       RUNNER_TEMP: home,
@@ -223,15 +178,15 @@ it("installs without masking .profile and configures CI through bash", async () 
     const output = await run(["bash", "-c", 'printf "%s" "$NODE_OPTIONS"'], { BASH_ENV: bashEnv });
     expect(output).toContain("--import=file:");
     expect(output).toContain("/infra/task-cache/src/preload.mjs");
-    await NodeFSP.rm(NodePath.join(home, ".local/share/t3-task-cache/preload.mjs"));
+    await NodeFSP.rm(NodePath.join(home, ".local/share/t3remix-task-cache/preload.mjs"));
     const missing = await run(["bash", "-c", `node -e 'console.log("missing preload is safe")'`], {
-      BASH_ENV: NodePath.join(home, ".config/t3-task-cache/env"),
+      BASH_ENV: NodePath.join(home, ".config/t3remix-task-cache/env"),
     });
     expect(missing).toContain("missing preload is safe");
 
     await NodeFSP.writeFile(
       NodePath.join(home, ".bash_profile"),
-      '. "$HOME/.config/t3-task-cache/env"\n',
+      '. "$HOME/.config/t3remix-task-cache/env"\n',
     );
     await run(
       [
@@ -242,20 +197,20 @@ it("installs without masking .profile and configures CI through bash", async () 
       {},
     );
     expect(await NodeFSP.readdir(home)).not.toContain(".bash_profile");
-    expect(await NodeFSP.readdir(NodePath.join(home, ".local/share/t3-task-cache"))).toEqual([
+    expect(await NodeFSP.readdir(NodePath.join(home, ".local/share/t3remix-task-cache"))).toEqual([
       "preload.mjs",
     ]);
     expect(await NodeFSP.readFile(NodePath.join(home, ".profile"), "utf8")).not.toContain(
       "t3-task-cache/env",
     );
-    expect(await NodeFSP.readdir(NodePath.join(home, ".config/t3-task-cache"))).not.toContain(
+    expect(await NodeFSP.readdir(NodePath.join(home, ".config/t3remix-task-cache"))).not.toContain(
       "credentials.json",
     );
     const remaining = await run(
       [
         process.execPath,
         "--import",
-        NodePath.join(home, ".local/share/t3-task-cache/preload.mjs"),
+        NodePath.join(home, ".local/share/t3remix-task-cache/preload.mjs"),
         "-e",
         'console.log("node survives uninstall")',
       ],
@@ -292,6 +247,15 @@ it("does not send an old endpoint's token after changing the URL interactively",
     const scripts = NodePath.join(root, "infra/task-cache/scripts");
     await NodeFSP.mkdir(scripts, { recursive: true });
     await NodeFSP.mkdir(NodePath.join(root, "infra/task-cache/src"));
+    await NodeFSP.mkdir(NodePath.join(root, "packages/shared/src"), { recursive: true });
+    await NodeFSP.copyFile(
+      NodePath.join(import.meta.dirname, "remoteCache.ts"),
+      NodePath.join(root, "infra/task-cache/src/remoteCache.ts"),
+    );
+    await NodeFSP.copyFile(
+      NodePath.join(import.meta.dirname, "../../../packages/shared/src/relayUrl.ts"),
+      NodePath.join(root, "packages/shared/src/relayUrl.ts"),
+    );
     await NodeFSP.writeFile(NodePath.join(root, "package.json"), '{"type":"module"}');
     await NodeFSP.writeFile(NodePath.join(root, ".task-cache.json"), JSON.stringify({ endpoint }));
     await NodeFSP.copyFile(
@@ -302,9 +266,9 @@ it("does not send an old endpoint's token after changing the URL interactively",
       NodePath.join(import.meta.dirname, "nativeHook.js"),
       NodePath.join(root, "infra/task-cache/src/nativeHook.js"),
     );
-    await NodeFSP.mkdir(NodePath.join(root, ".config/t3-task-cache"), { recursive: true });
+    await NodeFSP.mkdir(NodePath.join(root, ".config/t3remix-task-cache"), { recursive: true });
     await NodeFSP.writeFile(
-      NodePath.join(root, ".config/t3-task-cache/credentials.json"),
+      NodePath.join(root, ".config/t3remix-task-cache/credentials.json"),
       JSON.stringify({
         [endpoint]: { name: "maria", token: "different-saved-endpoint-credential" },
       }),

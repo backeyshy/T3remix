@@ -1,8 +1,3 @@
-# Security policy
+# 安全问题反馈
 
-Report security vulnerabilities affecting T3 Code or T3 Tools-operated infrastructure to
-[security@t3.codes](mailto:security@t3.codes). Please do not disclose them publicly until we have had
-a reasonable opportunity to investigate and remediate them.
-
-See the [full security policy](https://t3.codes/security-policy) for reporting details, scope,
-and safe harbor terms for good-faith research.
+本仓库由 backeyshy 独立维护。发现影响此 fork 的问题时，请私下联系仓库所有者。提交复现信息前，请移除配对链接、访问令牌、真实会话和项目内容。需要了解应用的信任边界，可阅读[安全模型](../SECURITY.md)。

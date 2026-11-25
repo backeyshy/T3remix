@@ -17,6 +17,7 @@ import {
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import { FetchHttpClient, HttpClient } from "effect/http";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
@@ -690,6 +691,18 @@ const layerTelemetry = Layer.unwrap(
 
     return layerOtelWarnings.pipe(
       Layer.provideMerge(Layer.mergeAll(layerLogger, layerTracer)),
+      Layer.provide(
+        Layer.effect(
+          HttpClient.HttpClient,
+          Effect.map(HttpClient.HttpClient, (client) =>
+            client.pipe(
+              HttpClient.transformResponse(
+                Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" }),
+              ),
+            ),
+          ),
+        ),
+      ),
       Layer.provide(OtelEnvironment.layerResourceAttributes(endpoints.resourceAttributes)),
     );
   }),

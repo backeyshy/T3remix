@@ -33,13 +33,14 @@ export class NpmLauncherCommandFailedError extends Schema.TaggedError<NpmLaunche
 /** engines requires import.meta.dirname and fetch. `t3code` is read back by npmReleaseDatabaseMigration. */
 export function npmLauncherPackageManifest(version: string, databaseMigration: number) {
   return {
-    name: NPM_LAUNCHER_PACKAGE_NAME,
+    name: "@backeyshy/t3remix",
+    private: true,
     version,
     description:
-      "T3 Code CLI. Downloads the self-contained executable for this platform from the GitHub Release.",
+      "Remix Workbench CLI. Downloads the self-contained executable for this platform from the GitHub Release.",
     license: serverPackageJson.license,
     repository: serverPackageJson.repository,
-    bin: { t3: "./bin/t3.mjs" },
+    bin: { t3remix: "./bin/t3.mjs" },
     files: ["bin", "dist"],
     engines: { node: ">=20.11" },
     t3code: { databaseMigration },

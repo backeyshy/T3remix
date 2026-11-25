@@ -1,24 +1,35 @@
-# Installs the T3 Code CLI from a GitHub Release archive on Windows. Needs
+# Installs the Remix Workbench CLI from a GitHub Release archive on Windows. Needs
 # only PowerShell 5.1+; no Node, npm, or compiler.
 #
-#   irm https://t3.codes/install.ps1 | iex
+#   .\scripts\install.ps1
 #
 # Environment:
 #   T3CODE_CHANNEL           release train to follow: stable, nightly, or preview
 #                            (default: stable; preview is a maintainers' test train)
 #   T3CODE_VERSION           exact version to install (overrides T3CODE_CHANNEL)
-#   T3CODE_HOME              T3 home directory (default: ~\.t3)
+#   T3REMIX_HOME              T3 home directory (default: ~\.t3remix)
 #   T3CODE_INSTALL_BIN_DIR   where t3.exe is linked (default: ~\.local\bin)
 #   T3CODE_RELEASE_BASE_URL  mirror for releases/download (default: GitHub)
 #
-# The archive is unpacked into $T3CODE_HOME\runtime\versions\<version>, the
+# The archive is unpacked into $T3REMIX_HOME\runtime\versions\<version>, the
 # same layout `t3 service install` uses, so the service reuses this download.
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$repo = "pingdotgg/t3code"
+$repo = "backeyshy/T3remix"
 $baseUrl = if ($env:T3CODE_RELEASE_BASE_URL) { $env:T3CODE_RELEASE_BASE_URL.TrimEnd("/") } else { "https://github.com/$repo/releases/download" }
-$t3Home = if ($env:T3CODE_HOME) { $env:T3CODE_HOME } else { Join-Path $HOME ".t3" }
+$maxRedirects = 8
+if ($env:T3CODE_RELEASE_BASE_URL) {
+  $maxRedirects = 0
+  $mirror = [Uri] $baseUrl
+  $sourcePath = [Uri]::UnescapeDataString($mirror.AbsolutePath)
+  if ($mirror.Scheme -notin @("http", "https") -or $mirror.UserInfo -or
+      $mirror.Host.TrimEnd('.') -match '(^|\.)(t3\.(codes|tools|chat)|t3coderelay\.com|t3tools\.com)$' -or
+      ($mirror.Host -match '(^|\.)(github\.com|githubusercontent\.com)$' -and $sourcePath -match '/(pingdotgg|t3dotgg|t3tools)(/|$)') -or
+      ($mirror.Host -match '(^|\.)npmjs\.(com|org)$' -and $sourcePath -match '/(t3|@t3tools)(/|$)')) { throw "Configure your own HTTP(S) release mirror." }
+  if (-not $env:T3CODE_VERSION) { throw "Set the exact fork version for your release mirror." }
+}
+$t3Home = if ($env:T3REMIX_HOME) { $env:T3REMIX_HOME } else { Join-Path $HOME ".t3remix" }
 $binDir = if ($env:T3CODE_INSTALL_BIN_DIR) { $env:T3CODE_INSTALL_BIN_DIR } else { Join-Path $HOME ".local\bin" }
 # Absolute, so PATH never gets a folder that changes with the working directory.
 $binDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($binDir)
@@ -80,11 +91,13 @@ function Invoke-Retrying([scriptblock] $request) {
 function Fetch([string] $uri, [string] $destination, [switch] $progress) {
   if (-not $progress -or -not $interactive) {
     $ProgressPreference = if ($progress -and $terminal) { "Continue" } else { "SilentlyContinue" }
-    Invoke-Retrying { Invoke-WebRequest -Uri $uri -OutFile $destination -UseBasicParsing }
+    Invoke-Retrying { Invoke-WebRequest -MaximumRedirection $maxRedirects -Uri $uri -OutFile $destination -UseBasicParsing }
     return
   }
   Add-Type -AssemblyName System.Net.Http
-  $client = New-Object System.Net.Http.HttpClient
+  $handler = New-Object System.Net.Http.HttpClientHandler
+  $handler.AllowAutoRedirect = $maxRedirects -gt 0
+  $client = New-Object System.Net.Http.HttpClient($handler)
   $response = $source = $file = $null
   try {
     for ($attempt = 1; ; $attempt++) {
@@ -117,23 +130,7 @@ function Fetch([string] $uri, [string] $destination, [switch] $progress) {
     $client.Dispose()
   }
 }
-if ($interactive) {
-  # Block characters are constructed so this file also loads correctly in PowerShell 5.1.
-  $mark = @(
-    "########## ######## ",
-    "    ###       _##^  ",
-    "    ###       ####_ ",
-    "    ###    _     ###",
-    "    ###    #######^ "
-  )
-  [Console]::Error.WriteLine()
-  for ($i = 0; $i -lt $mark.Length; $i++) {
-    $row = $mark[$i].Replace('#', [char]0x2588).Replace('^', [char]0x2580).Replace('_', [char]0x2584)
-    $label = if ($i -eq 1) { "     ${bold}T3 Code$reset" } elseif ($i -eq 2) { "     ${muted}CLI installer$reset" } else { "" }
-    [Console]::Error.WriteLine("  $bold$row$reset$label")
-  }
-  [Console]::Error.WriteLine()
-}
+if ($interactive) { [Console]::Error.WriteLine("${bold}Remix Workbench CLI installer$reset") }
 Step "Finding your release..."
 
 # PROCESSOR_ARCHITEW6432 bypasses WOW64 emulation; 5.1 hosts can lack RuntimeInformation's required .NET version.
@@ -190,14 +187,14 @@ if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $version)) {
   New-Item -ItemType Directory -Path $staging | Out-Null
   try {
     if ($interactive) { [Console]::Error.Write("`r$esc[2K") }
-    [Console]::Error.WriteLine("  ${muted}Installing$reset T3 Code $bold$version$reset`n")
+    [Console]::Error.WriteLine("  ${muted}Installing$reset Remix Workbench $bold$version$reset`n")
     Step "Downloading..."
     try {
       Fetch "$baseUrl/v$version/SHA256SUMS" (Join-Path $staging "SHA256SUMS")
     } catch {
       $status = $_.Exception.Response.StatusCode.value__
       if ($status -eq 404) {
-        Fail "t3 $version has no release archive for win32-$arch; releases before the self-contained CLI can only be installed with 'npm install -g t3@$version'"
+        Fail "t3 $version has no release archive for win32-$arch; build or install this fork from source"
       }
       throw
     }
@@ -211,7 +208,7 @@ if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $version)) {
     $actual = (Get-FileHash -Algorithm SHA256 (Join-Path $staging $archive)).Hash.ToLowerInvariant()
     if ($actual -ne $expected) { Fail "checksum mismatch for $archive" }
 
-    Step "Extracting T3 Code..."
+    Step "Extracting Remix Workbench..."
     # The archive module reads the global preference, not the caller's local scope.
     $savedProgress = $global:ProgressPreference
     try {
@@ -235,7 +232,7 @@ if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $version)) {
 
 Step "Setting up the t3 command..."
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
-$shim = Join-Path $binDir "t3.cmd"
+$shim = Join-Path $binDir "t3remix.cmd"
 # Replace only a shim that runs a version in this home; never the desktop app's or another t3.
 if (Test-Path -LiteralPath $shim) {
   $existingTarget = ""
@@ -263,7 +260,7 @@ if (-not ((Test-Path $launchers) -and ((Get-Content $launchers) -contains $shimP
   [System.IO.File]::AppendAllText($launchers, "$shimPath`r`n", (New-Object System.Text.UTF8Encoding $false))
 }
 if ($interactive) { [Console]::Error.Write("`r$esc[2K") }
-[Console]::Error.WriteLine("  ${green}Installed T3 Code $version$reset`n")
+[Console]::Error.WriteLine("  ${green}Installed Remix Workbench $version$reset`n")
 if ($binDir.Contains(";")) {
   # PATH would split the folder at the `;`, so name the command in full instead.
   Write-Host "  Run ${bold}& '$($shim.Replace("'", "''"))'$reset to get started.`n"
@@ -274,12 +271,12 @@ if ($binDir.Contains(";")) {
   # Last, so it never shadows another t3.
   if ($added) { $env:Path = "$env:Path;$binDir" }
   # A t3 earlier on PATH runs instead, so name this one in full.
-  $first = Get-Command t3 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  $first = Get-Command t3remix -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($first -and [System.IO.Path]::GetFullPath($first.Source) -ne [System.IO.Path]::GetFullPath($shimPath)) {
     Write-Host "  Another t3 at $($first.Source) runs first, so run ${bold}& '$($shim.Replace("'", "''"))'$reset to use this one.`n"
   } elseif ($added) {
-    Write-Host "  Run ${bold}t3$reset to get started. For new windows, add $binDir to your PATH.`n"
+    Write-Host "  Run ${bold}t3remix$reset to get started. For new windows, add $binDir to your PATH.`n"
   } else {
-    Write-Host "  Run ${bold}t3$reset to use T3 Code here, or ${bold}t3 up$reset to use it from your other devices.`n"
+    Write-Host "  Run ${bold}t3remix$reset to use Remix Workbench here, or ${bold}t3remix up$reset to use it from your other devices.`n"
   }
 }

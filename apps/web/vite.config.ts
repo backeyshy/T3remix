@@ -48,7 +48,9 @@ const configuredDesktopUpdateRepository =
   process.env.GITHUB_REPOSITORY?.trim() ||
   "";
 const configuredHostedAppUrl = (() => {
-  const explicitHostedAppUrl = process.env.VITE_HOSTED_APP_URL?.trim();
+  const explicitHostedAppUrl = (
+    repoEnv.VITE_HOSTED_APP_URL ?? repoEnv.T3CODE_HOSTED_APP_URL
+  )?.trim();
   if (explicitHostedAppUrl) {
     return explicitHostedAppUrl;
   }
@@ -290,7 +292,7 @@ function bootstrapTitlePlugin(): Plugin {
         hostedAppChannel: configuredHostedAppChannel,
         development,
       });
-      const title = formatAppDisplayName({ baseName: "T3 Code", stageLabel });
+      const title = formatAppDisplayName({ baseName: "Remix Workbench", stageLabel });
       return html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
     },
   };

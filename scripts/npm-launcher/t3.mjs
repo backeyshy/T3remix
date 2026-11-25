@@ -15,8 +15,8 @@ const SUPPORTED = ["darwin-arm64", "linux-arm64", "linux-x64", "win32-arm64", "w
 const TERMINATE_GRACE_MS = 5_000;
 
 function t3Home() {
-  const raw = (process.env.T3CODE_HOME || "").trim();
-  if (raw === "") return path.join(os.homedir(), ".t3");
+  const raw = (process.env.T3REMIX_HOME || "").trim();
+  if (raw === "") return path.join(os.homedir(), ".t3remix");
   if (raw === "~") return os.homedir();
   if (raw.startsWith("~/") || raw.startsWith("~\\")) return path.join(os.homedir(), raw.slice(2));
   return path.resolve(raw);
@@ -28,7 +28,23 @@ async function get(url) {
   let response;
   for (let attempt = 1; ; attempt++) {
     try {
-      response = await fetch(url);
+      const target = new URL(url);
+      const host = target.hostname.toLowerCase().replace(/\.+$/, "");
+      const path = decodeURIComponent(target.pathname);
+      if (
+        !["http:", "https:"].includes(target.protocol) ||
+        target.username ||
+        target.password ||
+        /(?:^|\.)(?:t3\.(?:codes|chat|tools)|t3coderelay\.com|t3tools\.com)$/.test(host) ||
+        (/(?:^|\.)(?:github\.com|githubusercontent\.com)$/.test(host) &&
+          /\/(?:pingdotgg|t3dotgg|t3tools)(?:\/|$)/i.test(path)) ||
+        (/(?:^|\.)npmjs\.(?:org|com)$/.test(host) && /\/(?:t3|@t3tools)(?:\/|$)/i.test(path))
+      ) {
+        throw new Error("Configure your own release source.");
+      }
+      response = await fetch(url, {
+        redirect: process.env.T3CODE_RELEASE_BASE_URL ? "error" : "follow",
+      });
       if (attempt === 4 || !isTransient(response.status)) break;
       await response.body?.cancel();
     } catch (error) {
@@ -64,7 +80,7 @@ async function download(url, file) {
         shown = step;
         const percent = total ? ` ${step}%` : "";
         process.stderr.write(
-          `\r\x1b[2Kt3: downloading T3 Code ${version}${percent} (${(received / 1048576).toFixed(1)} MB)`,
+          `\r\x1b[2Kt3: downloading Remix Workbench ${version}${percent} (${(received / 1048576).toFixed(1)} MB)`,
         );
       }
     }
@@ -78,7 +94,7 @@ async function download(url, file) {
 async function install(dir, key) {
   const archive = `t3-${version}-${key}.${process.platform === "win32" ? "zip" : "tar.gz"}`;
   const base = (
-    process.env.T3CODE_RELEASE_BASE_URL || "https://github.com/pingdotgg/t3code/releases/download"
+    process.env.T3CODE_RELEASE_BASE_URL || "https://github.com/backeyshy/T3remix/releases/download"
   ).replace(/\/+$/, "");
   const sums = await (await get(`${base}/v${version}/SHA256SUMS`)).text();
   const expected = /^([0-9a-f]{64})\s+\*?(.+)$/im;
@@ -178,8 +194,8 @@ async function main() {
   const key = `${process.platform}-${process.arch}`;
   if (!SUPPORTED.includes(key)) {
     throw new Error(
-      `no T3 Code CLI build is available for ${key} (supported: ${SUPPORTED.join(", ")}).\n` +
-        "The desktop app is at https://github.com/pingdotgg/t3code/releases",
+      `no Remix Workbench CLI build is available for ${key} (supported: ${SUPPORTED.join(", ")}).\n` +
+        "The desktop app is at https://github.com/backeyshy/T3remix/releases",
     );
   }
   const dir = path.join(t3Home(), "runtime", "versions", version);
@@ -240,7 +256,7 @@ function killTree(child) {
 
 function executableError(key, detail) {
   return new Error(
-    `could not run T3 Code ${version} for ${key}: ${detail}` +
+    `could not run Remix Workbench ${version} for ${key}: ${detail}` +
       (process.platform === "linux"
         ? "\nThe Linux release requires glibc; musl-based systems such as Alpine are not supported. Use a glibc-based Linux environment."
         : ""),

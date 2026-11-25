@@ -15,7 +15,7 @@ import {
   RELAY_URL_SECRET,
 } from "./config.ts";
 
-export const CLOUD_CLI_DESIRED_LINK_SECRET = "cloud-cli-desired-link";
+export const CLOUD_CLI_DESIRED_LINK_SECRET = "t3remix-cloud-cli-desired-link";
 
 export type CliDesiredLinkMode = "managed" | "publish_only";
 

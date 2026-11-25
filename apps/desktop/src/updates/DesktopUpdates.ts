@@ -43,7 +43,7 @@ import {
   normalizeDesktopUpdateReleaseNotes,
   releaseNotesOfOfferedVersion,
 } from "./releaseNotes.ts";
-import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
+import { desktopUpdateChannelOf, isSelfHostedSource } from "@t3tools/shared/cliRelease";
 import { compareSemverVersions } from "@t3tools/shared/semver";
 import {
   createInitialDesktopUpdateState,
@@ -297,7 +297,20 @@ function parseAppUpdateYml(raw: string): Effect.Effect<Option.Option<AppUpdateYm
   }
 
   return decodeAppUpdateYmlConfig(entries).pipe(
-    Effect.map((config) => (config.provider ? Option.some(config) : Option.none())),
+    Effect.map((config) => {
+      const valid =
+        config.provider === "generic"
+          ? isSelfHostedSource(config.url)
+          : config.provider === "github" &&
+            !!config.owner &&
+            !!config.repo &&
+            /^[\w.-]+$/.test(config.owner) &&
+            /^[\w.-]+$/.test(config.repo) &&
+            isSelfHostedSource(`https://github.com/${config.owner}/${config.repo}`) &&
+            (!config.host ||
+              isSelfHostedSource(`https://${config.host}/${config.owner}/${config.repo}`));
+      return valid ? Option.some(config) : Option.none();
+    }),
     Effect.orElseSucceed(() => Option.none<AppUpdateYmlConfig>()),
   );
 }
@@ -1411,7 +1424,7 @@ export const make = Effect.gen(function* () {
       if (Option.isSome(channelBlockedReason(nextChannel))) {
         return yield* new DesktopUpdateChannelManagedError({
           channel: nextChannel,
-          policyMessage: policy.message ?? "Your administrator manages T3 Code updates.",
+          policyMessage: policy.message ?? "Your administrator manages Remix Workbench updates.",
         });
       }
       // A background check holds the updater only briefly, so wait it out instead of refusing.

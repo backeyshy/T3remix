@@ -1,3 +1,4 @@
+import { isUpstreamServiceHostname } from "@t3tools/shared/relayUrl";
 import { msg } from "gt-i18n";
 import { translatableDetail } from "../errors/translatable.ts";
 import {
@@ -173,7 +174,7 @@ function mapSessionRpcError(
   }
 }
 
-/** Over T3 Connect the relay already reached the host, so a socket that drops failed between this device and the tunnel. */
+/** Over Workbench Connect the relay already reached the host, so a socket that drops failed between this device and the tunnel. */
 function socketFailureLocation(via: "relay" | "direct") {
   return { hop: via === "relay" ? "tunnel" : "server", via } as const;
 }
@@ -249,6 +250,11 @@ export const make = Effect.fn("RpcSessionFactory.make")(function* (
       return socket;
     };
     const socketUrl = new URL(connection.socketUrl);
+    if (isUpstreamServiceHostname(socketUrl.hostname))
+      return yield* new ConnectionBlockedError({
+        reason: "configuration",
+        detail: "This upstream service is disabled.",
+      });
     socketUrl.searchParams.set(SOCKET_FRAME_PARTS_QUERY_PARAM, "1");
     const layerSocket = Layer.effect(
       Socket.Socket,

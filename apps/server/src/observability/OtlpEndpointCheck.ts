@@ -3,6 +3,7 @@ import type {
   OtlpEndpointCheckResult,
   OtlpSignal,
 } from "@t3tools/contracts";
+import { isUpstreamServiceUrl } from "@t3tools/shared/relayUrl";
 import { layerOtlpSerialization } from "@t3tools/shared/observability";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -51,6 +52,7 @@ const make = Effect.gen(function* () {
     signal,
     url,
   }: OtlpEndpointCheckInput) {
+    if (isUpstreamServiceUrl(url)) return { _tag: "Unreachable", timedOut: false } as const;
     const { url: runningUrl, export: signalExport } = running[signal];
     const headers = url === runningUrl ? signalExport.headers : undefined;
     const body = yield* Effect.gen(function* () {
