@@ -62,14 +62,22 @@ it("lets text the host did not write opt out of the host's breaks", async () => 
   expect(screen.container.querySelectorAll("p br")).toHaveLength(0);
 });
 
-it("loads the body's host media in the pull request's repository, not the checkout's", async () => {
+it("loads each opened attachment using the pull request's repository", async () => {
   setup();
   const image = "https://github.com/user-attachments/assets/7195f963-51a9-4331-be74-3e06be760422";
   const video = "https://github.com/user-attachments/assets/2f8c1a90-1b2c-4d5e-8f90-abcdef123456";
-  await using _screen = await renderBody("github", {
+  await using screen = await renderBody("github", {
     repository: "enterprise/private",
     text: `![shot](${image})\n\n${video}`,
   });
+  expect(requested.filter(Boolean)).toEqual([]);
+  await screen.getByRole("button", { name: "shot" }).click();
+  expect(
+    requested.some(
+      (resource) => resource != null && "url" in resource && resource.url.includes("2f8c1a90"),
+    ),
+  ).toBe(false);
+  await screen.getByRole("button", { name: "Pull request video" }).click();
   await vi.waitFor(() =>
     expect(requested).toEqual(
       expect.arrayContaining([
