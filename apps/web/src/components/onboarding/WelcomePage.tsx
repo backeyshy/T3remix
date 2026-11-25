@@ -149,9 +149,11 @@ export function WelcomePage({
   const canReadAccess = useEnvironmentScope(environmentId, AuthAccessReadScope);
   const canWriteAccess = useEnvironmentScope(environmentId, AuthAccessWriteScope);
   const policy = useManagedPolicy(environmentId);
+  const canShareViaRelay =
+    hasCloudPublicConfig() && canReadRelay && canWriteRelay && policy?.limits?.connect !== false;
   const showPhone = welcomeOffersPhone({
     isPrimary,
-    canShare: canReadAccess && canWriteAccess,
+    canShare: canShareViaRelay || (canReadAccess && canWriteAccess),
     policy,
   });
   const scans = useProjectScans([environmentId]);
@@ -308,15 +310,7 @@ export function WelcomePage({
                 isImporting={isImporting}
               />
               {showPhone ? (
-                <PhoneSection
-                  environmentId={environmentId}
-                  cloud={
-                    hasCloudPublicConfig() &&
-                    canReadRelay &&
-                    canWriteRelay &&
-                    policy?.limits?.connect !== false
-                  }
-                />
+                <PhoneSection environmentId={environmentId} cloud={canShareViaRelay} />
               ) : null}
             </div>
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3">

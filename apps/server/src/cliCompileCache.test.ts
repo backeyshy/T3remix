@@ -59,7 +59,7 @@ it.live("loads the CLI with its cache settings only when the command needs it", 
     expect(normal.exitCode).toBe(0);
     expect(normal.stderr).toContain("LOADED_CLI_MAIN");
     expect(normal.stderr.replaceAll("\\", "/")).toContain(
-      `CACHE=${root}/cache/t3code/compile-cache`.replaceAll("\\", "/"),
+      `CACHE=${root}/cache/t3remix/compile-cache`.replaceAll("\\", "/"),
     );
     const launcher = yield* run({ T3REMIX_HOME: "" }, ["__service-launcher"]);
     expect(launcher.exitCode).toBe(1);
@@ -68,7 +68,7 @@ it.live("loads the CLI with its cache settings only when the command needs it", 
     const launcherHelp = yield* run({ T3REMIX_HOME: "" }, ["__service-launcher", "--help"]);
     expect(launcherHelp.exitCode).toBe(0);
     expect(launcherHelp.stderr).toContain("LOADED_CLI_MAIN");
-    expect(launcherHelp.stdout).toContain("t3 __service-launcher [flags]");
+    expect(launcherHelp.stdout).toContain("t3remix __service-launcher [flags]");
     const launcherFlags = yield* run({ T3REMIX_HOME: "" }, [
       "__service-launcher",
       "--log-level",
@@ -77,14 +77,18 @@ it.live("loads the CLI with its cache settings only when the command needs it", 
     expect(launcherFlags.exitCode).toBe(1);
     expect(launcherFlags.stderr).toContain("LOADED_CLI_MAIN");
     expect(launcherFlags.stderr).toContain("[service-launcher] T3REMIX_HOME is required");
-    const cacheDir = `${root}/cache/t3code/compile-cache`;
+    const cacheDir = `${root}/cache/t3remix/compile-cache`;
     yield* fs.makeDirectory(`${cacheDir}/v24.0.0-x64-legacy-1000`, { recursive: true });
     yield* fs.writeFileString(`${cacheDir}/v24.0.0-x64-legacy-1000/0123abcd`, "stale");
     yield* fs.makeDirectory(`${cacheDir}/server`, { recursive: true });
-    const appImage = yield* run({ APPIMAGE: `${root}/T3Code.AppImage` });
+    const upstreamCache = `${root}/cache/t3code/compile-cache/v24.0.0-x64-legacy-1000`;
+    yield* fs.makeDirectory(upstreamCache, { recursive: true });
+    yield* fs.writeFileString(`${upstreamCache}/0123abcd`, "upstream");
+    const appImage = yield* run({ APPIMAGE: `${root}/Remix-Workbench.AppImage` });
     expect(appImage.exitCode).toBe(0);
     expect(appImage.stderr).toContain("CACHE=disabled");
     expect((yield* fs.readDirectory(cacheDir)).toSorted()).toEqual(["server"]);
+    expect(yield* fs.readFileString(`${upstreamCache}/0123abcd`)).toBe("upstream");
     const existing = yield* run({ NODE_COMPILE_CACHE: `${root}/explicit` });
     expect(existing.exitCode).toBe(0);
     expect(existing.stderr.replaceAll("\\", "/")).toContain(
